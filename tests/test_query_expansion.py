@@ -7,7 +7,7 @@ import pytest
 
 from restmex.archetypes import label_archetypes
 from restmex.config import Config, LLMConfig
-from restmex.llm import GeminiClient, GeminiError, LLMProvider, build_llm_chain
+from restmex.llm import GeminiClient, GeminiError, LLMProvider, build_llm_chain, parse_retry_after
 from restmex.ollama_client import OllamaError
 from restmex.query_expansion import antonym_anti_hyde, expand_query, parse_expansion
 from restmex.recommender import Recommender
@@ -124,17 +124,34 @@ def test_chain_with_key_orders_gemini_first(monkeypatch) -> None:
     assert names == [("gemini", cfg.llm.gemini_model), ("gemini", "gemini-b"), ("ollama", cfg.llm.ollama_model)]
 
 
-def test_label_archetypes_batch_and_fallback(index, cfg) -> None:
-    meta = index.meta
+def test_label_archetypes_batch_local_and_keywords(index, cfg) -> None:
+    meta = index.meta                                # 4 pueblos × 2 arquetipos
     for m in meta:
         m["keywords"], m["type_mix"] = ["tacos", "pescado", "ceviche"], {"Restaurant": 1.0}
-    ok = json.dumps({"etiquetas": ["Mariscos", "Zona arqueológica"]})
+    two = json.dumps({"etiquetas": ["Mariscos", "Zona arqueológica"]})
+    one = json.dumps({"etiquetas": ["Fondas"]})
     bad = json.dumps({"etiquetas": ["solo una"]})
-    client = FakeOllama([ok, bad, bad, ok, ok])      # el 2.º pueblo falla dos veces
-    n = label_archetypes(meta, only(client), cfg)
-    assert n == 6
-    assert meta[0]["label"] == "Mariscos" and meta[0]["label_source"] == "ollama:qwen-test"
-    assert meta[2]["label"] == "Tacos, pescado, ceviche" and meta[2]["label_source"] == "keywords"
+    gemini = FakeOllama([two, bad, bad, GeminiError("503")])       # pueblo 1 ok, 2 mal formado, 3 caído
+    ollama = FakeOllama([one, "mal", "mal", one, one])              # pueblo 2: 1 ok + 1 mal formado; pueblo 3: 2 ok
+    n = label_archetypes(meta, chain(gemini, ollama), cfg)
+    assert n == 2 + 1 + 2 + 0
+    assert meta[0]["label"] == "Mariscos" and meta[0]["label_source"] == "gemini:gemini-test"
+    assert meta[2]["label"] == "Fondas" and meta[2]["label_source"] == "ollama:qwen-test"
+    assert meta[3]["label"] == "Tacos, pescado, ceviche" and meta[3]["label_source"] == "keywords"
+    assert meta[4]["label_source"] == "ollama:qwen-test"
+    assert meta[6]["label_source"] == "keywords"     # sin respuestas: palabras clave
+
+
+def test_quota_error_sets_cooldown_from_retry_after() -> None:
+    assert parse_retry_after("Please retry in 5h31m22.6s.") == pytest.approx(5 * 3600 + 31 * 60 + 22.6)
+    assert parse_retry_after("Please retry in 41.5s.") == pytest.approx(41.5)
+    assert parse_retry_after("otro error") is None
+    err = GeminiError("429 RESOURCE_EXHAUSTED")
+    err.retry_after = 7200.0
+    providers = chain(FakeOllama([err]), FakeOllama([good_json()]))
+    out = expand_query(QUERY, providers, LLMConfig())
+    assert out.provider == "ollama"
+    assert providers[0].seconds_until_available > 7000   # cuota diaria: no se reintenta en horas
 
 
 def test_recommender_keeps_working_in_fallback(index, cfg) -> None:

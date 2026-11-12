@@ -49,6 +49,23 @@ Reglas: las etiquetas deben distinguir a los grupos entre sí (no repitas); desc
 Devuelve {{"etiquetas": [...]}} con exactamente {k} etiquetas, en el mismo orden de los grupos.
 """
 
+# Variante de un solo grupo para el modelo local pequeño (por lotes se confunde).
+LABEL_PROMPT_SINGLE = """Pon una etiqueta corta en español (1 a 3 palabras, tipo categoría turística) al tema de un grupo de reseñas. Describe el tema, no la opinión.
+
+Ejemplo
+Palabras clave: tacos, mariscos, sabor, mesero, platillos, pescado
+Reseña: "La comida deliciosa, pedimos tacos de pescado y ceviche. El mesero muy atento."
+{{"etiquetas": ["Mariscos y tacos"]}}
+
+Ejemplo
+Palabras clave: pirámide, ruinas, guía, mayas, zona arqueológica, subir
+Reseña: "Impresionante zona arqueológica, vale la pena contratar un guía."
+{{"etiquetas": ["Zona arqueológica"]}}
+
+Palabras clave: {keywords}
+Reseña: "{review}"
+"""
+
 # Plantilla de antónimos para el fallback del Anti-HyDE (sin LLM).
 ANTONYM_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"tranquil|relaj|paz|descans|silenci|calma", re.I),

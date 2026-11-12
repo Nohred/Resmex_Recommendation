@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional, Protocol
@@ -20,6 +21,17 @@ logger = logging.getLogger(__name__)
 
 class GeminiError(LLMError):
     """Gemini no respondió, no hay clave o devolvió una respuesta vacía."""
+
+
+_RETRY_IN = re.compile(r"retry in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", re.I)
+
+
+def parse_retry_after(message: str) -> Optional[float]:
+    """Extrae "Please retry in 5h31m22.6s" de un error 429 de Gemini (en segundos)."""
+    m = _RETRY_IN.search(message)
+    if not m:
+        return None
+    return int(m.group(1) or 0) * 3600 + int(m.group(2) or 0) * 60 + float(m.group(3))
 
 
 class LLMClient(Protocol):
@@ -111,12 +123,16 @@ class GeminiClient:
                 text = resp.text
                 break
             except Exception as exc:  # errores de red, cuota, 5xx, etc.
-                msg = f"{type(exc).__name__}: {str(exc)[:160]}"
+                full = str(exc)
+                msg = f"{type(exc).__name__}: {full[:160]}"
                 # 503 "high demand" suele ser momentáneo: un reintento rápido.
                 if attempt == 0 and "503" in msg:
                     time.sleep(1.5)
                     continue
-                raise GeminiError(msg) from exc
+                err = GeminiError(msg)
+                if "429" in msg:  # cuota por minuto o por día: la API dice cuánto esperar
+                    err.retry_after = parse_retry_after(full)
+                raise err from exc
         if not text:
             raise GeminiError("Respuesta vacía de Gemini")
         return str(text)
@@ -143,16 +159,23 @@ class LLMProvider:
     timeout: float = 90.0
     cooldown: float = 60.0         # segundos que se omite tras fallar (para no frenar la demo)
     _down_until: float = field(default=0.0, repr=False)
+    quota_limited: bool = field(default=False, repr=False)   # caído por cuota (429), no por error
 
     @property
     def available(self) -> bool:
         return time.time() >= self._down_until
 
-    def mark_down(self) -> None:
-        self._down_until = time.time() + self.cooldown
+    @property
+    def seconds_until_available(self) -> float:
+        return max(0.0, self._down_until - time.time())
+
+    def mark_down(self, seconds: Optional[float] = None) -> None:
+        """Omite el proveedor durante `seconds` (o su `cooldown` por defecto)."""
+        self._down_until = time.time() + (self.cooldown if seconds is None else seconds)
 
     def mark_up(self) -> None:
         self._down_until = 0.0
+        self.quota_limited = False
 
 
 def build_llm_chain(cfg: Config, ollama: Optional[OllamaClient] = None) -> list[LLMProvider]:
@@ -190,10 +213,11 @@ class ChainResult:
 class ChainExhausted(LLMError):
     """Ningún proveedor produjo una salida válida."""
 
-    def __init__(self, errors: list[str], attempts: int) -> None:
+    def __init__(self, errors: list[str], attempts: int, retry_after: Optional[float] = None) -> None:
         super().__init__("; ".join(errors) or "sin proveedores de LLM")
         self.errors = errors
         self.attempts = attempts
+        self.retry_after = retry_after     # espera mínima pedida por cuota, si la hubo
 
 
 def run_chain(
@@ -215,10 +239,13 @@ def run_chain(
     """
     errors: list[str] = []
     attempts = 0
+    quota_waits: list[float] = []
     for prov in providers:
         tag = f"{prov.name}/{prov.model}"
         if not prov.available:
             errors.append(f"{tag}: omitido (falló hace poco)")
+            if prov.quota_limited:
+                quota_waits.append(prov.seconds_until_available)
             continue
         for attempt in range(1 + max(0, retries)):
             attempts += 1
@@ -238,9 +265,13 @@ def run_chain(
             except LLMError as exc:
                 errors.append(f"{tag}: no respondió ({exc})")
                 logger.warning("%s no respondió: %s", tag, exc)
-                prov.mark_down()
+                # Con cuota agotada se espera justo lo que pide el servicio.
+                prov.mark_down(exc.retry_after + 1 if exc.retry_after else None)
+                prov.quota_limited = bool(exc.retry_after)
+                if exc.retry_after:
+                    quota_waits.append(exc.retry_after + 1)
                 break
             except ValueError as exc:
                 errors.append(f"{tag}: salida mal formada ({exc})")
                 logger.warning("%s salida mal formada (intento %d): %s", tag, attempt + 1, exc)
-    raise ChainExhausted(errors, attempts)
+    raise ChainExhausted(errors, attempts, min(quota_waits) if quota_waits else None)

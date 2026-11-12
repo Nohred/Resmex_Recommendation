@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -14,12 +15,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from .config import Config
 from .data import display_region, display_town
 from .encoders import l2_normalize
-from .llm import ChainExhausted, LLMProvider, run_chain
-from .prompts import LABEL_PROMPT, LABEL_SYSTEM
+from .llm import ChainExhausted, ChainResult, LLMProvider, run_chain
+from .prompts import LABEL_PROMPT, LABEL_PROMPT_SINGLE, LABEL_SYSTEM
 from .stopwords import SPANISH_STOPWORDS
 
 logger = logging.getLogger(__name__)
 
+MAX_QUOTA_WAIT = 90.0  # s; esperas mayores (cuota diaria) pasan al respaldo
 _TOKEN = r"(?u)\b[a-záéíóúüñ]{3,}\b"
 
 
@@ -99,40 +101,79 @@ def _labels_parser(k: int) -> Callable[[str], list[str]]:
     return parse
 
 
-def label_archetypes(meta: list[dict[str, Any]], providers: list[LLMProvider], cfg: Config) -> int:
-    """Etiqueta los arquetipos (in situ) con una llamada al LLM por pueblo.
+def _review_snippet(m: dict[str, Any], n: int = 260) -> str:
+    return m["representatives"][0]["text"][:n].replace('"', "'") if m.get("representatives") else ""
 
-    Recorre la cadena de proveedores; si ninguno da una salida válida, el pueblo
-    conserva la etiqueta de respaldo (3 palabras clave). Devuelve cuántos
-    arquetipos quedaron etiquetados por un LLM.
+
+def _label_town_remote(items: list[dict[str, Any]], town: str, remote: list[LLMProvider]) -> Optional[ChainResult]:
+    """Una llamada por pueblo (lote). Si la cuota por minuto se agota, espera y reintenta."""
+    groups = []
+    for j, m in enumerate(items, start=1):
+        mix = ", ".join(f"{t} {round(100 * v)}%" for t, v in m.get("type_mix", {}).items())
+        groups.append(
+            f"Grupo {j} | tipo: {mix} | palabras clave: {', '.join(m['keywords'])} | reseña: \"{_review_snippet(m)}\""
+        )
+    prompt = LABEL_PROMPT.format(k=len(items), town=items[0].get("town_display", town), groups="\n".join(groups))
+    for _ in range(3):
+        try:
+            return run_chain(remote, prompt, _labels_parser(len(items)),
+                             system=LABEL_SYSTEM, temperature=0.2, num_predict=300, retries=1)
+        except ChainExhausted as exc:
+            wait = exc.retry_after
+            if wait is None or wait > MAX_QUOTA_WAIT:    # error real o cuota diaria: al respaldo
+                return None
+            logger.info("Cuota por minuto agotada: esperando %.0f s", wait)
+            time.sleep(wait)
+    return None
+
+
+def _label_single_local(m: dict[str, Any], local: list[LLMProvider]) -> Optional[ChainResult]:
+    """Etiqueta un solo arquetipo con el modelo local."""
+    prompt = LABEL_PROMPT_SINGLE.format(keywords=", ".join(m["keywords"]), review=_review_snippet(m))
+    try:
+        return run_chain(local, prompt, _labels_parser(1), system=LABEL_SYSTEM,
+                         temperature=0.2, num_predict=40, retries=1)
+    except ChainExhausted:
+        return None
+
+
+def label_archetypes(
+    meta: list[dict[str, Any]], providers: list[LLMProvider], cfg: Config, pace: float = 0.0
+) -> int:
+    """Etiqueta los arquetipos (in situ) y devuelve cuántos etiquetó un LLM.
+
+    - Proveedores remotos (Gemini): una llamada por pueblo con sus ~10 grupos,
+      separadas por `pace` segundos para respetar la cuota.
+    - Respaldo local (Ollama): una llamada por arquetipo.
+    - Si nada responde, se conserva la etiqueta de palabras clave.
     """
+    remote = [p for p in providers if p.name != "ollama"]
+    local = [p for p in providers if p.name == "ollama"]
     by_town: dict[str, list[dict[str, Any]]] = {}
     for m in meta:
         by_town.setdefault(m["town"], []).append(m)
     labeled = 0
     for i, (town, items) in enumerate(by_town.items()):
-        groups = []
-        for j, m in enumerate(items, start=1):
-            mix = ", ".join(f"{t} {round(100 * v)}%" for t, v in m.get("type_mix", {}).items())
-            review = m["representatives"][0]["text"][:260].replace('"', "'") if m.get("representatives") else ""
-            groups.append(
-                f"Grupo {j} | tipo: {mix} | palabras clave: {', '.join(m['keywords'])} | reseña: \"{review}\""
-            )
-        prompt = LABEL_PROMPT.format(k=len(items), town=items[0].get("town_display", town), groups="\n".join(groups))
-        try:
-            res = run_chain(
-                providers, prompt, _labels_parser(len(items)),
-                system=LABEL_SYSTEM, temperature=0.2, num_predict=300, retries=1,
-            )
-        except ChainExhausted as exc:
-            logger.warning("Sin etiquetas del LLM para %s: %s", town, exc)
+        res = _label_town_remote(items, town, remote) if remote else None
+        if res is not None:
+            for m, label in zip(items, res.value):
+                m["label"], m["label_source"] = label, f"{res.provider.name}:{res.provider.model}"
+            labeled += len(items)
+            source = res.provider.model
+            if pace:
+                time.sleep(pace)
+        else:
+            n_local = 0
             for m in items:
-                m["label"], m["label_source"] = fallback_label(m["keywords"]), "keywords"
-            continue
-        for m, label in zip(items, res.value):
-            m["label"], m["label_source"] = label, f"{res.provider.name}:{res.provider.model}"
-        labeled += len(items)
-        logger.info("[%2d/%d] etiquetas de %s (%s)", i + 1, len(by_town), town, res.provider.model)
+                one = _label_single_local(m, local) if local and m["keywords"] else None
+                if one is not None:
+                    m["label"], m["label_source"] = one.value[0], f"{one.provider.name}:{one.provider.model}"
+                    n_local += 1
+                else:
+                    m["label"], m["label_source"] = fallback_label(m["keywords"]), "keywords"
+            labeled += n_local
+            source = f"local: {n_local}/{len(items)}"
+        logger.info("[%2d/%d] etiquetas de %s (%s)", i + 1, len(by_town), town, source)
     return labeled
 
 
