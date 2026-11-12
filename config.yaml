@@ -64,6 +64,6 @@ llm:
   cache_dir: artifacts/llm_cache
 
 ranking:
-  lambda: 0.05             # penalización por popularidad (ver calibración en README)
+  lambda: 0.015            # calibrado en validación: menor sesgo de popularidad sin perder MRR macro (ver README)
   top_k: 5
   bottom_k: 5

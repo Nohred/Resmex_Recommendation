@@ -10,6 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+from .data import display_town  # noqa: E402
 from .retrieval import ArchetypeIndex  # noqa: E402
 
 BLUE, ORANGE = "#2a78d6", "#eb6834"      # par categórico validado (seguro para daltonismo)
@@ -34,7 +35,7 @@ def _grouped_bars(ax: Any, groups: list[str], series: dict[str, list[float]], co
         for b, v in zip(bars, values):
             ax.text(b.get_x() + b.get_width() / 2, v + 0.012, f"{v:.3f}", ha="center", va="bottom", fontsize=9.5, color=INK)
     ax.set_xticks(x, groups)
-    ax.set_ylim(0, max(max(v) for v in series.values()) * 1.2)
+    ax.set_ylim(0, max(max(v) for v in series.values()) * 1.36)   # espacio para la leyenda
     ax.grid(axis="x", visible=False)
     ax.legend(loc="upper left", ncols=2, fontsize=10)
 
@@ -92,7 +93,7 @@ def fig_popularity(sweep: list[dict[str, Any]], index: ArchetypeIndex, lam: floa
         ax.set_title(f"{title} · Spearman = {rows[lam_]['spearman_balanced']:+.2f}")
         ax.set_xlabel("Reseñas de entrenamiento del pueblo (escala log)")
         for t in np.argsort(-index.n_reviews)[:3]:
-            ax.annotate(index.towns[t].replace("_", " "), (index.n_reviews[t], freq[t]), xytext=(-6, 7),
+            ax.annotate(display_town(index.towns[t]), (index.n_reviews[t], freq[t]), xytext=(-7, 6),
                         textcoords="offset points", ha="right", fontsize=9, color=MUTED)
     axes[0].set_ylabel("Veces que aparece en el Top 5")
     fig.suptitle("Sesgo de popularidad con consultas balanceadas (mismo número por pueblo)",

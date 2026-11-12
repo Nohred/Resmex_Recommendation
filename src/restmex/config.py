@@ -81,7 +81,7 @@ class LLMConfig:
 
 @dataclass
 class RankingConfig:
-    lam: float = 0.05
+    lam: float = 0.015
     top_k: int = 5
     bottom_k: int = 5
 

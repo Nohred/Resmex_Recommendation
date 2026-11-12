@@ -104,7 +104,8 @@ def expand_query(
             seconds=time.time() - start,
         )
     hyde, anti = res.value
-    degraded = bool(providers) and res.provider is not providers[0]
+    # Una respuesta guardada en caché no es una degradación, aunque venga de un respaldo.
+    degraded = bool(providers) and res.provider is not providers[0] and not res.cached
     return QueryExpansion(
         query,
         hyde,

@@ -218,10 +218,15 @@ def test_cache_avoids_second_call(tmp_path) -> None:
     second = expand_query(QUERY, providers, LLMConfig(), cache)
     assert not first.cached and second.cached and second.attempts == 0
     assert second.hyde == first.hyde and second.provider == "gemini"
+    # Respuesta en caché de un respaldo: se sirve sin llamar a nadie y sin marcarla como degradada.
+    backup = chain(FakeOllama([GeminiError("x")]), FakeOllama([good_json()]))
+    assert expand_query("consulta de respaldo", backup, LLMConfig(), cache).degraded
+    again = expand_query("consulta de respaldo", chain(FakeOllama([]), FakeOllama([])), LLMConfig(), cache)
+    assert again.cached and again.provider == "ollama" and not again.degraded
     assert len(gemini.calls) == 1
     # Otra consulta sí llama; una salida mal formada nunca se guarda.
     other = expand_query("otra consulta distinta", chain(FakeOllama(["{"]), FakeOllama([])), LLMConfig(retries=0), cache)
-    assert other.fallback and len(list((tmp_path / "cache").glob("*.json"))) == 1
+    assert other.fallback and len(list((tmp_path / "cache").glob("*.json"))) == 2
 
 
 def test_label_archetypes_batch_local_and_keywords(index, cfg) -> None:

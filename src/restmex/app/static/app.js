@@ -188,4 +188,9 @@ document.addEventListener("click", (e) => {
 
 checkHealth();
 const preset = new URLSearchParams(location.search).get("q");
-if (preset) { query.value = preset; recommend(preset); }
+if (preset) {
+  query.value = preset;
+  recommend(preset).then(() => {
+    if (new URLSearchParams(location.search).get("textos")) $("texts").open = true;
+  });
+}
