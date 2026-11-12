@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from .config import Config
 from .encoders import Encoder, build_encoder
+from .llm import LLMProvider, build_llm_chain
 from .ollama_client import OllamaClient
 from .query_expansion import QueryExpansion, expand_query
 from .ranking import TownResult, rank_towns
@@ -33,7 +34,10 @@ class Recommendation:
             "anti_hyde": self.expansion.anti_hyde,
             "fallback": self.expansion.fallback,
             "fallback_reason": self.expansion.fallback_reason,
+            "degraded": self.expansion.degraded,
+            "llm_provider": self.expansion.provider,
             "llm_model": self.expansion.model,
+            "llm_errors": self.expansion.errors,
             "llm_attempts": self.expansion.attempts,
             "lambda": self.lam,
             "top": [t.to_dict() for t in self.top],
@@ -51,17 +55,19 @@ class Recommender:
         index: ArchetypeIndex,
         encoder: Optional[Encoder] = None,
         client: Optional[OllamaClient] = None,
+        providers: Optional[list[LLMProvider]] = None,
     ) -> None:
         self.cfg = cfg
         self.index = index
         self.client = client or OllamaClient(cfg.ollama.host, cfg.ollama.keep_alive)
         self.encoder = encoder or build_encoder(cfg, self.client)
+        self.providers = providers if providers is not None else build_llm_chain(cfg, self.client)
 
     def recommend(self, query: str, lam: Optional[float] = None) -> Recommendation:
         """Ejecuta el pipeline completo y mide el tiempo de cada etapa."""
         lam = self.cfg.ranking.lam if lam is None else lam
         t0 = time.perf_counter()
-        expansion = expand_query(query, self.client, self.cfg.llm)
+        expansion = expand_query(query, self.providers, self.cfg.llm)
         t1 = time.perf_counter()
         # Ambos textos se codifican como documentos (ver encoders.py).
         vecs = self.encoder.encode_documents([expansion.hyde, expansion.anti_hyde])

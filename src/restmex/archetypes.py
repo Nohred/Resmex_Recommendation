@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from .config import Config
 from .data import display_region, display_town
 from .encoders import l2_normalize
-from .ollama_client import OllamaClient, OllamaError
+from .llm import ChainExhausted, LLMProvider, run_chain
 from .prompts import LABEL_PROMPT, LABEL_SYSTEM
 from .stopwords import SPANISH_STOPWORDS
 
@@ -81,29 +81,71 @@ def _valid_label(label: Any) -> Optional[str]:
     return label[0].upper() + label[1:]
 
 
-def llm_label(client: OllamaClient, model: str, keywords: list[str], review: str, timeout: float = 30.0) -> Optional[str]:
-    """Etiqueta corta generada por el LLM; `None` si falla o no es válida."""
-    prompt = LABEL_PROMPT.format(keywords=", ".join(keywords), review=review[:300].replace('"', "'"))
-    try:
-        raw = client.generate(
-            model, prompt, system=LABEL_SYSTEM, json_format=True,
-            temperature=0.2, num_predict=30, timeout=timeout,
-        )
-        return _valid_label(json.loads(raw).get("etiqueta"))
-    except (OllamaError, json.JSONDecodeError, AttributeError):
-        return None
+def _labels_parser(k: int) -> Callable[[str], list[str]]:
+    """Valida `{"etiquetas": [k cadenas]}`; lanza `ValueError` si no cumple."""
+
+    def parse(raw: str) -> list[str]:
+        try:
+            labels = json.loads(raw).get("etiquetas")
+        except (json.JSONDecodeError, AttributeError) as exc:
+            raise ValueError(f"JSON inválido: {exc}") from exc
+        if not isinstance(labels, list) or len(labels) != k:
+            raise ValueError(f"Se esperaban {k} etiquetas")
+        clean = [_valid_label(x) for x in labels]
+        if any(c is None for c in clean):
+            raise ValueError("Etiqueta vacía o demasiado larga")
+        return clean  # type: ignore[return-value]
+
+    return parse
+
+
+def label_archetypes(meta: list[dict[str, Any]], providers: list[LLMProvider], cfg: Config) -> int:
+    """Etiqueta los arquetipos (in situ) con una llamada al LLM por pueblo.
+
+    Recorre la cadena de proveedores; si ninguno da una salida válida, el pueblo
+    conserva la etiqueta de respaldo (3 palabras clave). Devuelve cuántos
+    arquetipos quedaron etiquetados por un LLM.
+    """
+    by_town: dict[str, list[dict[str, Any]]] = {}
+    for m in meta:
+        by_town.setdefault(m["town"], []).append(m)
+    labeled = 0
+    for i, (town, items) in enumerate(by_town.items()):
+        groups = []
+        for j, m in enumerate(items, start=1):
+            mix = ", ".join(f"{t} {round(100 * v)}%" for t, v in m.get("type_mix", {}).items())
+            review = m["representatives"][0]["text"][:260].replace('"', "'") if m.get("representatives") else ""
+            groups.append(
+                f"Grupo {j} | tipo: {mix} | palabras clave: {', '.join(m['keywords'])} | reseña: \"{review}\""
+            )
+        prompt = LABEL_PROMPT.format(k=len(items), town=items[0].get("town_display", town), groups="\n".join(groups))
+        try:
+            res = run_chain(
+                providers, prompt, _labels_parser(len(items)),
+                system=LABEL_SYSTEM, temperature=0.2, num_predict=300, retries=1,
+            )
+        except ChainExhausted as exc:
+            logger.warning("Sin etiquetas del LLM para %s: %s", town, exc)
+            for m in items:
+                m["label"], m["label_source"] = fallback_label(m["keywords"]), "keywords"
+            continue
+        for m, label in zip(items, res.value):
+            m["label"], m["label_source"] = label, f"{res.provider.name}:{res.provider.model}"
+        labeled += len(items)
+        logger.info("[%2d/%d] etiquetas de %s (%s)", i + 1, len(by_town), town, res.provider.model)
+    return labeled
 
 
 def build_archetypes(
     df: pd.DataFrame,
     embeddings: np.ndarray,
     cfg: Config,
-    client: Optional[OllamaClient] = None,
 ) -> tuple[np.ndarray, list[dict[str, Any]], dict[str, Any]]:
     """Construye los arquetipos con las reseñas de entrenamiento.
 
     `df` y `embeddings` deben estar alineados (solo filas de train).
-    Devuelve (centroides (A, d) normalizados, metadatos por arquetipo, estadísticas por pueblo).
+    Las etiquetas quedan con el respaldo de palabras clave; `label_archetypes`
+    las reemplaza con el LLM. Devuelve (centroides (A, d) normalizados, metadatos por arquetipo, estadísticas por pueblo).
     """
     acfg = cfg.archetypes
     vectors: list[np.ndarray] = []
@@ -137,9 +179,6 @@ def build_archetypes(
                 for m in top
             ]
             type_mix = pd.Series(types[members]).value_counts(normalize=True).round(3).to_dict()
-            label: Optional[str] = None
-            if acfg.label_with_llm and client is not None and keywords[c]:
-                label = llm_label(client, cfg.llm.model, keywords[c], reps[0]["text"])
             meta.append(
                 {
                     "id": len(meta),
@@ -152,8 +191,8 @@ def build_archetypes(
                     "mean_polarity": round(float(polarity[members].mean()), 3),
                     "type_mix": type_mix,
                     "keywords": keywords[c],
-                    "label": label or fallback_label(keywords[c]),
-                    "label_source": "llm" if label else "keywords",
+                    "label": fallback_label(keywords[c]),
+                    "label_source": "keywords",
                     "representatives": reps,
                 }
             )

@@ -1,33 +1,40 @@
-"""Expansión de la consulta: HyDE y Anti-HyDE con el LLM local, con fallback."""
+"""Expansión de la consulta: HyDE y Anti-HyDE con la cadena de LLM y fallback.
+
+Cadena: Gemini → modelo local en Ollama → plantilla de antónimos (sin LLM).
+"""
 from __future__ import annotations
 
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .config import LLMConfig
-from .ollama_client import OllamaClient, OllamaError
+from .llm import ChainExhausted, LLMProvider, run_chain
 from .prompts import ANTONYM_DEFAULT, ANTONYM_RULES, ANTONYM_TEMPLATE, HYDE_PROMPT, HYDE_SYSTEM
 
 logger = logging.getLogger(__name__)
 
 MIN_WORDS = 30  # menos que esto se considera una salida mal formada
+TEMPLATE_PROVIDER = "plantilla"
 
 
 @dataclass
 class QueryExpansion:
-    """Textos generados para una consulta."""
+    """Textos generados para una consulta y quién los generó."""
 
     query: str
     hyde: str
     anti_hyde: str
-    fallback: bool = False
+    provider: str = TEMPLATE_PROVIDER      # "gemini" | "ollama" | "plantilla"
+    model: str = ""
+    fallback: bool = False                 # True si se usó la plantilla (ningún LLM respondió)
+    degraded: bool = False                 # True si no respondió el primer proveedor de la cadena
     fallback_reason: Optional[str] = None
+    errors: list[str] = field(default_factory=list)
     attempts: int = 0
     seconds: float = 0.0
-    model: str = ""
 
 
 def antonym_anti_hyde(query: str) -> str:
@@ -55,46 +62,49 @@ def parse_expansion(raw: str) -> tuple[str, str]:
     return hyde, anti
 
 
-def expand_query(query: str, client: OllamaClient, cfg: LLMConfig) -> QueryExpansion:
-    """Genera HyDE y Anti-HyDE. Nunca lanza: si el LLM falla, usa el fallback.
+def expand_query(query: str, providers: list[LLMProvider], cfg: LLMConfig) -> QueryExpansion:
+    """Genera HyDE y Anti-HyDE. Nunca lanza: si ningún LLM responde, usa la plantilla.
 
-    Hace 1 + `cfg.retries` intentos. El fallback usa la consulta original como
-    HyDE y una plantilla de antónimos como Anti-HyDE.
+    Cada proveedor tiene 1 + `cfg.retries` intentos ante una salida mal formada.
+    El fallback usa la consulta original como HyDE y una plantilla de antónimos
+    como Anti-HyDE.
     """
     query = " ".join(query.split())
     start = time.time()
-    reason = "sin intentos"
-    attempts = 0
     prompt = HYDE_PROMPT.format(query=query.replace('"', "'"))
-    for attempt in range(1 + max(0, cfg.retries)):
-        attempts = attempt + 1
-        try:
-            raw = client.generate(
-                cfg.model,
-                prompt,
-                system=HYDE_SYSTEM,
-                json_format=True,
-                temperature=min(cfg.temperature + 0.1 * attempt, 1.0),
-                num_predict=cfg.num_predict,
-                timeout=cfg.timeout,
-            )
-            hyde, anti = parse_expansion(raw)
-            return QueryExpansion(
-                query, hyde, anti, attempts=attempts, seconds=time.time() - start, model=cfg.model
-            )
-        except OllamaError as exc:
-            reason = f"Ollama no respondió: {exc}"
-            logger.warning("HyDE intento %d: %s", attempts, reason)
-        except ValueError as exc:
-            reason = f"Salida mal formada: {exc}"
-            logger.warning("HyDE intento %d: %s", attempts, reason)
+    try:
+        res = run_chain(
+            providers,
+            prompt,
+            parse_expansion,
+            system=HYDE_SYSTEM,
+            temperature=cfg.temperature,
+            num_predict=cfg.num_predict,
+            retries=cfg.retries,
+        )
+    except ChainExhausted as exc:
+        return QueryExpansion(
+            query,
+            hyde=query,
+            anti_hyde=antonym_anti_hyde(query),
+            fallback=True,
+            degraded=True,
+            fallback_reason=str(exc),
+            errors=exc.errors,
+            attempts=exc.attempts,
+            seconds=time.time() - start,
+        )
+    hyde, anti = res.value
+    degraded = bool(providers) and res.provider is not providers[0]
     return QueryExpansion(
         query,
-        hyde=query,
-        anti_hyde=antonym_anti_hyde(query),
-        fallback=True,
-        fallback_reason=reason,
-        attempts=attempts,
+        hyde,
+        anti,
+        provider=res.provider.name,
+        model=res.provider.model,
+        degraded=degraded,
+        fallback_reason="; ".join(res.errors) if degraded else None,
+        errors=res.errors,
+        attempts=res.attempts,
         seconds=time.time() - start,
-        model=cfg.model,
     )

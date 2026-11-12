@@ -8,48 +8,45 @@ from __future__ import annotations
 import re
 
 HYDE_SYSTEM = (
-    "Eres un viajero mexicano que escribe reseñas de destinos turísticos. "
+    "Eres un viajero mexicano que escribe reseñas de destinos turísticos en un sitio de viajes. "
     'Respondes únicamente con un JSON válido con las claves "busca", "opuesto", "hyde" y "anti_hyde".'
 )
 
-# Las claves "busca" y "opuesto" obligan al modelo pequeño a planear antes de
-# escribir: así el HyDE no olvida partes de la consulta y el Anti-HyDE invierte
-# las características del destino (no describe "el mismo lugar pero malo").
-HYDE_PROMPT = """Un viajero describe el destino que busca. Responde con un JSON de 4 claves, en este orden:
+# Diseño del prompt:
+# - Sin reseña de ejemplo: los modelos (sobre todo los pequeños) la copiaban y el
+#   HyDE perdía partes de la consulta. Solo se da una guía de pares de opuestos.
+# - "busca" y "opuesto" obligan a planear antes de escribir: el HyDE cubre toda
+#   la consulta y el Anti-HyDE invierte las características del destino.
+# - El Anti-HyDE lo escribe "otro viajero al que sí le gusta ese lugar": así el
+#   texto describe rasgos opuestos del destino y no una mala experiencia (queja
+#   de servicio, suciedad), que se parecería a las reseñas negativas de cualquier pueblo.
+HYDE_PROMPT = """Un viajero describe el destino que busca en México. Devuelve un JSON con 4 claves, en este orden:
 
-1. "busca": lista de 3 a 5 características que pide el viajero (usa sus palabras).
-2. "opuesto": lista con lo contrario de cada característica. Nombra lo que SÍ hay en ese otro lugar (otro ambiente, otro entorno, otras actividades); no uses "sin" ni "no".
-3. "hyde": reseña entusiasta en primera persona, de 6 a 8 oraciones (unas 100 palabras), de un destino que tiene TODAS las características de "busca". Menciona cada una con detalles concretos de paisaje, actividades, comida y gente.
-4. "anti_hyde": reseña en primera persona, de 6 a 8 oraciones (unas 100 palabras), que describe un destino que tiene TODAS las características de "opuesto", con detalles concretos. Solo describe ese lugar: no lo compares, no uses las palabras "opuesto" ni "contraste" y no menciones lo que busca el viajero.
+1. "busca": lista de 3 a 5 características del destino que pide el viajero (ambiente, entorno, actividades, comida, clima), con sus propias palabras.
+2. "opuesto": lista con el contrario de cada característica, como rasgos de OTRO tipo de destino. Nombra lo que sí hay allá; nunca escribas "sin ..." ni "no hay ...". Guía de opuestos (aplica en ambos sentidos): tranquilo ↔ masivo y fiestero; arqueológico o colonial ↔ moderno y comercial; playa y calor ↔ sierra y frío; naturaleza ↔ ciudad y concreto; comida tradicional ↔ cadenas y comida rápida; económico ↔ lujo exclusivo; artesanías ↔ plazas comerciales.
+3. "hyde": reseña entusiasta de 80 a 150 palabras, en primera persona, de un viajero que visitó un destino que tiene TODAS las características de "busca". Menciona cada una con detalles concretos de lo que vio, hizo y comió.
+4. "anti_hyde": reseña de 80 a 150 palabras, en primera persona, de OTRO viajero que visitó un destino que tiene TODAS las características de "opuesto" y lo describe con detalles concretos (a él sí le gusta ese tipo de lugar). Sería la pesadilla del primer viajero, pero la reseña solo describe ese lugar: no lo compara con nada ni menciona lo que buscaba el primer viajero.
 
-Reglas: español de México. Nunca escribas nombres propios de pueblos, ciudades ni estados. No copies frases del ejemplo.
-
-Ejemplo
-Viajero: "Quiero un pueblo de montaña con clima frío, cabañas y chocolate caliente"
-{{"busca": ["pueblo de montaña", "clima frío", "cabañas", "chocolate caliente"], "opuesto": ["costa plana junto al mar", "calor intenso y húmedo", "hoteles enormes todo incluido", "cocteles con hielo en la alberca"], "hyde": "Nos encantó este pueblito en lo alto de la montaña. Hace frío todo el día y en las mañanas la neblina cubre el bosque de pinos. Nos quedamos en una cabaña de madera con chimenea, muy acogedora y con vista a la sierra. En la plaza venden chocolate caliente espumoso y pan recién horneado, perfecto para el clima. Caminamos por las calles empedradas, bien abrigados, y la gente fue muy amable. Si te gusta el frío, la leña y la tranquilidad de la montaña, este lugar es ideal para un fin de semana.", "anti_hyde": "Este destino es de costa, plano y pegado al mar. El calor es intenso y húmedo desde temprano, se suda todo el día. Nos hospedamos en un hotel enorme todo incluido, con cientos de habitaciones, bufet y varias albercas. La gente pasa el día en camastros tomando cocteles con hielo y cerveza helada junto a la alberca. Hay música, animadores y mucho movimiento. Todo gira alrededor del sol, la arena y el bar de la playa. Es un lugar de calor, traje de baño y hoteles grandes."}}
+Reglas:
+- Español de México, natural y coloquial, como una reseña real de un sitio de viajes.
+- Nunca escribas nombres propios de pueblos, ciudades, estados, hoteles ni atracciones.
+- "hyde" y "anti_hyde" no deben compartir ninguna característica del destino.
 
 Viajero: "{query}"
 """
 
 LABEL_SYSTEM = (
-    "Clasificas temas de reseñas turísticas. "
-    'Respondes únicamente con un JSON válido con la clave "etiqueta".'
+    "Clasificas temas de reseñas turísticas de Pueblos Mágicos de México. "
+    'Respondes únicamente con un JSON válido con la clave "etiquetas".'
 )
 
-LABEL_PROMPT = """Pon una etiqueta corta en español (1 a 3 palabras, tipo categoría turística) al tema de un grupo de reseñas.
+LABEL_PROMPT = """Estos son {k} grupos temáticos de reseñas de turistas sobre {town}. Da a cada grupo una etiqueta corta en español: 1 a 3 palabras, tipo categoría turística (por ejemplo "Zona arqueológica", "Mariscos frente al mar", "Hoteles boutique", "Vida nocturna").
 
-Ejemplo
-Palabras clave: tacos, mariscos, sabor, mesero, platillos, pescado
-Reseña: "La comida deliciosa, pedimos tacos de pescado y ceviche. El mesero muy atento."
-{{"etiqueta": "Mariscos y tacos"}}
+Reglas: las etiquetas deben distinguir a los grupos entre sí (no repitas); describe el tema, no la opinión; no incluyas el nombre del pueblo.
 
-Ejemplo
-Palabras clave: pirámide, ruinas, guía, mayas, zona arqueológica, subir
-Reseña: "Impresionante zona arqueológica, vale la pena contratar un guía."
-{{"etiqueta": "Zona arqueológica"}}
+{groups}
 
-Palabras clave: {keywords}
-Reseña: "{review}"
+Devuelve {{"etiquetas": [...]}} con exactamente {k} etiquetas, en el mismo orden de los grupos.
 """
 
 # Plantilla de antónimos para el fallback del Anti-HyDE (sin LLM).

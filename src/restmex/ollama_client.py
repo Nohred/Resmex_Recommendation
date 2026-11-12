@@ -6,10 +6,12 @@ from typing import Any, Optional
 
 import requests
 
+from .errors import LLMError
+
 logger = logging.getLogger(__name__)
 
 
-class OllamaError(RuntimeError):
+class OllamaError(LLMError):
     """Ollama no respondió o devolvió un error."""
 
 
