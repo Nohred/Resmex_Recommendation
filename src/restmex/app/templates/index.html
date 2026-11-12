@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recomendador de Pueblos Mágicos</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="papel" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Rest-Mex 2025 · <span id="stat-towns">40</span> Pueblos Mágicos · <span id="stat-arch">400</span> arquetipos</p>
+      <h1>¿Qué Pueblo Mágico <em>va contigo</em>?</h1>
+      <p class="lead">Describe el viaje que imaginas. El sistema escribe la reseña de tu viaje ideal y la de tu viaje de pesadilla, y las compara con lo que miles de viajeros contaron de cada pueblo.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="search card" aria-labelledby="q-label">
+      <form id="form">
+        <label id="q-label" for="query">¿Qué buscas en tu próximo viaje?</label>
+        <textarea id="query" name="query" rows="3" maxlength="600" required
+          placeholder="Ej.: un pueblo tranquilo en la sierra, con neblina, café y caminatas por el bosque…"></textarea>
+        <div class="examples" id="examples" aria-label="Consultas de ejemplo"></div>
+        <div class="actions">
+          <span class="status" id="status" title="Estado del sistema"><i></i><span>Comprobando…</span></span>
+          <span class="hint">Ctrl + Enter</span>
+          <button type="submit" id="submit">Recomendar</button>
+        </div>
+      </form>
+    </section>
+
+    <div id="alert" class="alert" role="alert" hidden></div>
+
+    <section id="loading" class="loading card" hidden aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <strong id="loading-step">Imaginando tu viaje ideal…</strong>
+        <p>El modelo de lenguaje escribe dos reseñas; puede tardar unos segundos.</p>
+      </div>
+    </section>
+
+    <section id="results" hidden>
+      <div class="meta" id="meta"></div>
+
+      <h2 class="section-title top-title"><span>Top 5</span> Pueblos para ti</h2>
+      <div class="cards" id="top"></div>
+
+      <div class="avoid">
+        <h2 class="section-title bottom-title"><span>Bottom 5</span> Probablemente no son para ti</h2>
+        <p class="section-note">Los pueblos que más se parecen a tu viaje de pesadilla (Anti-HyDE), sin contar los del Top 5.</p>
+        <div class="cards compact" id="bottom"></div>
+      </div>
+
+      <details class="texts card" id="texts">
+        <summary>Ver las reseñas hipotéticas que generó el modelo <small id="texts-provider"></small></summary>
+        <div class="texts-grid">
+          <article class="hyde"><h3>HyDE · tu viaje ideal</h3><p id="hyde"></p></article>
+          <article class="anti"><h3>Anti-HyDE · tu viaje de pesadilla</h3><p id="anti"></p></article>
+        </div>
+      </details>
+    </section>
+
+    <section class="how card" aria-labelledby="how-title">
+      <h2 id="how-title">Cómo funciona</h2>
+      <p class="how-lead">Antes de la consulta (una sola vez), cada pueblo se resume en 10 <b>arquetipos</b>: los temas de los que hablan sus reseñas.</p>
+      <ol class="pipeline offline">
+        <li><b>208 mil reseñas</b><span>título + texto, 40 pueblos</span></li>
+        <li><b>Embeddings</b><span>nomic-embed-text-v2 · 768 d</span></li>
+        <li><b>K-Means por pueblo</b><span>k = 10 grupos</span></li>
+        <li><b>400 arquetipos</b><span>centroides + palabras clave</span></li>
+      </ol>
+      <p class="how-lead">En cada consulta:</p>
+      <ol class="pipeline online">
+        <li><b>1 · Tu consulta</b><span>lenguaje natural</span></li>
+        <li><b>2 · HyDE y Anti-HyDE</b><span>el LLM escribe la reseña ideal y la opuesta</span></li>
+        <li><b>3 · Emparejamiento</b><span>coseno contra los arquetipos; máximo por pueblo</span></li>
+        <li><b>4 · Penalización</b><span>− λ · log(1+n) / log(1+n<sub>max</sub>)</span></li>
+        <li><b>5 · Ranking</b><span>Top 5 por HyDE · Bottom 5 por Anti-HyDE</span></li>
+      </ol>
+      <p class="how-note">La penalización evita que los pueblos con muchísimas reseñas (como Tulum) ganen siempre solo por ser populares. La búsqueda tarda milisegundos; casi todo el tiempo lo consume el modelo de lenguaje.</p>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>Proyecto de Big Data · Datos: Rest-Mex 2025 · Embeddings locales con Ollama</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

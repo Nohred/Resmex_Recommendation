@@ -60,7 +60,7 @@ class LLMConfig:
     gemini_model: str = "gemini-3.8-flash"
     gemini_fallback_models: list[str] = field(default_factory=list)
     gemini_thinking_level: Optional[str] = "low"
-    gemini_timeout: float = 25.0
+    gemini_timeout: float = 15.0
     api_key_env: str = "GEMINI_API"
     ollama_model: str = "qwen2.5:3b"
     temperature: float = 0.4

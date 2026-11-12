@@ -27,7 +27,7 @@ Gemini (gemini_model → gemini_fallback_models) → Ollama (ollama_model) → p
    | `llm.gemini_model` | `gemini-3.8-flash` | Modelo principal (el Flash más reciente disponible con la clave) |
    | `llm.gemini_fallback_models` | `[gemini-3.5-flash]` | Otros modelos de Gemini que se prueban si el principal falla |
    | `llm.gemini_thinking_level` | `low` | Razonamiento mínimo para bajar la latencia |
-   | `llm.gemini_timeout` | `25` | Segundos antes de pasar al siguiente eslabón |
+   | `llm.gemini_timeout` | `15` | Segundos antes de pasar al siguiente eslabón |
    | `llm.ollama_model` | `qwen2.5:3b` | Respaldo local (`ollama pull qwen2.5:3b`) |
    | `llm.retries` | `1` | Reintentos por proveedor ante un JSON mal formado |
    | `llm.cooldown` | `300` | Segundos que se omite un proveedor después de fallar |

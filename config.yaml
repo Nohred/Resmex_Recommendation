@@ -41,7 +41,7 @@ llm:
   gemini_model: gemini-3.8-flash          # Flash más reciente disponible con la clave
   gemini_fallback_models: [gemini-3.5-flash]   # se prueban si el principal falla (503/504)
   gemini_thinking_level: low              # razonamiento mínimo = menor latencia (null lo omite)
-  gemini_timeout: 25                      # s; si se excede se pasa al siguiente eslabón
+  gemini_timeout: 15                      # s; si se excede se pasa al siguiente eslabón
   api_key_env: GEMINI_API                 # nombre de la variable en .env (nunca la clave)
   ollama_model: qwen2.5:3b                # p. ej. qwen2.5:7b si se descarga después
   temperature: 0.4
