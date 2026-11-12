@@ -32,6 +32,7 @@ def test_top_k_frequency_and_bias() -> None:
     np.testing.assert_array_equal(top_k_frequency(scores, 4, k=2), [3, 2, 1, 0])
     bias = popularity_bias(np.tile([4.0, 3, 2, 1, 0, -1], (5, 1)), np.array([600, 500, 400, 300, 200, 100]), k=2)
     assert bias["spearman"] > 0.5
+    assert popularity_bias(np.ones((3, 4)), np.array([4, 3, 2, 1]), k=4)["spearman"] == 0.0
 
 
 def test_balanced_sample() -> None:
@@ -42,11 +43,12 @@ def test_balanced_sample() -> None:
 
 def test_lambda_sweep_reduces_bias_and_choice() -> None:
     rng = np.random.default_rng(0)
-    n_reviews = np.array([10000, 3000, 500, 100, 50])
-    true = rng.integers(0, 5, 400)
-    sims = rng.normal(0, 0.02, (400, 5)) + 0.04 * np.log1p(n_reviews) / np.log1p(10000)   # sesgo hacia populares
-    sims[np.arange(400), true] += 0.03
-    rows = lambda_sweep(sims, true, n_reviews, 10000, [0.0, 0.04, 0.3], balanced_sample(true, 5))
+    n_reviews = np.array([20000, 9000, 5000, 3000, 2000, 1200, 800, 500, 300, 200, 100, 50])
+    T, Q = len(n_reviews), 1200
+    true = rng.integers(0, T, Q)
+    sims = rng.normal(0, 0.02, (Q, T)) + 0.04 * np.log1p(n_reviews) / np.log1p(20000)   # sesgo hacia populares
+    sims[np.arange(Q), true] += 0.03
+    rows = lambda_sweep(sims, true, n_reviews, 20000, [0.0, 0.04, 0.3], balanced_sample(true, T))
     assert rows[0]["spearman_balanced"] > rows[1]["spearman_balanced"]
     assert choose_lambda(rows) == 0.04           # quita el sesgo sin perder MRR macro
     assert rows[2]["macro_mrr"] < rows[1]["macro_mrr"]   # λ excesivo castiga de más

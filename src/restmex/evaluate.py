@@ -39,6 +39,8 @@ def top_k_frequency(scores: np.ndarray, n_towns: int, k: int = 5) -> np.ndarray:
 def popularity_bias(scores: np.ndarray, n_reviews: np.ndarray, k: int = 5) -> dict[str, Any]:
     """Spearman entre la frecuencia en el Top-k y el número de reseñas del pueblo."""
     freq = top_k_frequency(scores, len(n_reviews), k)
+    if np.ptp(freq) == 0:                        # todos aparecen igual: sin asociación
+        return {"spearman": 0.0, "p_value": 1.0, "frequency": freq.tolist()}
     rho, p = spearmanr(freq, n_reviews)
     return {"spearman": float(rho), "p_value": float(p), "frequency": freq.tolist()}
 
