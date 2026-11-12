@@ -36,19 +36,32 @@ archetypes:
   label_with_llm: true
 
 llm:
-  # Cadena de respaldo: Gemini → modelo local en Ollama → plantilla de antónimos.
-  provider: gemini         # gemini | ollama (ollama = solo el modelo local)
-  gemini_model: gemini-3.8-flash          # Flash más reciente disponible con la clave
-  gemini_fallback_models: [gemini-3.5-flash]   # se prueban si el principal falla (503/504)
-  gemini_thinking_level: low              # razonamiento mínimo = menor latencia (null lo omite)
-  gemini_timeout: 15                      # s; si se excede se pasa al siguiente eslabón
-  api_key_env: GEMINI_API                 # nombre de la variable en .env (nunca la clave)
-  ollama_model: qwen2.5:3b                # p. ej. qwen2.5:7b si se descarga después
+  # Cadena de respaldo; al final siempre queda la plantilla de antónimos (sin LLM).
+  chain: [gemini, groq, ollama]       # web y etiquetas de arquetipos
+  eval_chain: [groq, ollama]          # evaluación con HyDE (no gasta la cuota de Gemini)
+
+  gemini_model: gemini-3.5-flash      # gemini-3.8-flash: solo 20 solicitudes/día en la capa gratuita
+  gemini_thinking_level: low          # razonamiento mínimo = menor latencia (null lo omite)
+  gemini_timeout: 20                  # s; si se excede se pasa al siguiente eslabón
+  gemini_rpm: 10                      # solicitudes por minuto
+  gemini_api_key_env: GEMINI_API      # nombre de la variable en .env (nunca la clave)
+
+  groq_model: openai/gpt-oss-120b     # API compatible con OpenAI
+  groq_base_url: https://api.groq.com/openai/v1
+  groq_reasoning_effort: low
+  groq_timeout: 30
+  groq_rpm: 30
+  groq_api_key_env: GROQ_API
+
+  ollama_model: qwen2.5:3b            # respaldo local; p. ej. qwen2.5:7b si se descarga después
+  timeout: 90                         # s para el modelo local
+
   temperature: 0.4
   num_predict: 800
-  timeout: 90              # s para el modelo local
-  retries: 1               # reintentos por proveedor tras una salida mal formada
-  cooldown: 300            # s que se omite un proveedor después de fallar
+  retries: 1                          # reintentos por proveedor tras una salida mal formada
+  cooldown: 300                       # s que se omite un proveedor después de un error
+  cache: true                         # repetir un prompt no gasta cuota
+  cache_dir: artifacts/llm_cache
 
 ranking:
   lambda: 0.05             # penalización por popularidad (ver calibración en README)

@@ -12,3 +12,5 @@ class LLMError(RuntimeError):
     """
 
     retry_after: Optional[float] = None
+    status: Optional[int] = None       # código HTTP, si se conoce
+    daily: bool = False                # True si se agotó la cuota diaria

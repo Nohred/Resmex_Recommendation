@@ -10,7 +10,7 @@ const FALLBACK_EXAMPLES = [
   "Me interesan pueblos coloniales con artesanías y clima frío",
   "Naturaleza, cascadas y aventura lejos de las multitudes",
 ];
-const PROVIDER_NAMES = { gemini: "Gemini", ollama: "Modelo local (Ollama)", plantilla: "Plantilla sin LLM" };
+const PROVIDER_NAMES = { gemini: "Gemini", groq: "Groq", ollama: "Modelo local (Ollama)", plantilla: "Plantilla sin LLM" };
 const LOADING_STEPS = [
   "Imaginando tu viaje ideal…",
   "Escribiendo también tu viaje de pesadilla…",
@@ -57,8 +57,10 @@ async function checkHealth() {
       el.className = "status bad";
       label.textContent = "Ollama o el modelo de embeddings no están disponibles";
     } else if (first) {
-      el.className = "status " + (first.provider === "gemini" && first.available ? "ok" : "warn");
-      label.textContent = `Listo · LLM: ${first.provider === "gemini" ? "Gemini" : "Ollama"} (${first.model})`;
+      const active = h.llm.chain.find((p) => p.available) || first;
+      el.className = "status " + (active === first && first.available ? "ok" : "warn");
+      label.textContent = `Listo · LLM: ${PROVIDER_NAMES[active.provider] || active.provider} (${active.model})`
+        + (active === first ? "" : " · respaldo");
     } else {
       el.className = "status warn";
       label.textContent = "Listo · sin LLM (se usará la plantilla)";
@@ -111,11 +113,11 @@ function render(data) {
   } else if (data.degraded) {
     showAlert(`<b>El modelo principal no respondió.</b> Las reseñas hipotéticas las generó ${esc(PROVIDER_NAMES[p] || p)} (${esc(data.llm_model)}).`, "warn");
   }
-  const cls = p === "gemini" ? "" : (p === "ollama" ? " local" : " template");
+  const cls = (p === "gemini" || p === "groq") ? "" : (p === "ollama" ? " local" : " template");
   const t = data.timings_ms || {};
   $("meta").innerHTML = `
     <span class="pill provider${cls}">Generado por <b>${esc(PROVIDER_NAMES[p] || p)}</b>${data.llm_model ? " · " + esc(data.llm_model) : ""}</span>
-    <span class="pill">LLM <b>${ms(t.llm)}</b></span>
+    <span class="pill">LLM <b>${data.cached ? "caché" : ms(t.llm)}</b></span>
     <span class="pill">Embeddings <b>${ms(t.embedding)}</b></span>
     <span class="pill">Búsqueda <b>${ms(t.busqueda)}</b></span>
     <span class="pill">λ = <b>${data.lambda}</b></span>`;

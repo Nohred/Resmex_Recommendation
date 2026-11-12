@@ -32,7 +32,7 @@ def test_home_and_static(client) -> None:
 def test_health(client) -> None:
     data = client.get("/health").json()
     assert data["status"] == "ok" and data["index"]["archetypes"] == 8
-    assert data["llm"]["chain"][0] == {"provider": "gemini", "model": "gemini-test", "available": True}
+    assert data["llm"]["chain"][0] == {"provider": "gemini", "model": "gemini-test", "available": True, "exhausted": False}
     assert len(data["examples"]) == 4
 
 

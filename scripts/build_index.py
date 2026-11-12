@@ -23,7 +23,7 @@ from restmex.archetypes import build_archetypes, label_archetypes, town_centroid
 from restmex.config import load_config  # noqa: E402
 from restmex.data import load_reviews  # noqa: E402
 from restmex.encoders import build_encoder, embed_corpus  # noqa: E402
-from restmex.llm import build_llm_chain  # noqa: E402
+from restmex.llm import build_cache, build_llm_chain  # noqa: E402
 from restmex.ollama_client import OllamaClient  # noqa: E402
 
 logger = logging.getLogger("build_index")
@@ -35,7 +35,6 @@ def main() -> None:
     parser.add_argument("--sample", type=int, default=None, help="Muestra estratificada de N reseñas")
     parser.add_argument("--benchmark", type=int, default=None, help="Solo mide el rendimiento con N reseñas")
     parser.add_argument("--relabel", action="store_true", help="Solo re-etiquetar arquetipos existentes")
-    parser.add_argument("--pace", type=float, default=4.0, help="Segundos entre llamadas a Gemini al etiquetar")
     parser.add_argument("--no-labels", action="store_true", help="No etiquetar arquetipos con el LLM")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -54,7 +53,7 @@ def main() -> None:
 
     if args.relabel:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        n_llm = label_archetypes(meta, build_llm_chain(cfg, client), cfg, pace=args.pace)
+        n_llm = label_archetypes(meta, build_llm_chain(cfg, client), cfg, build_cache(cfg))
         save_meta(meta)
         logger.info("Re-etiquetado: %d de %d arquetipos con LLM", n_llm, len(meta))
         return
@@ -94,7 +93,7 @@ def main() -> None:
     (out_dir / "town_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
     n_llm = 0
     if cfg.archetypes.label_with_llm:
-        n_llm = label_archetypes(meta, build_llm_chain(cfg, client), cfg, pace=args.pace)
+        n_llm = label_archetypes(meta, build_llm_chain(cfg, client), cfg, build_cache(cfg))
         save_meta(meta)
     logger.info("Guardado en %s (%d etiquetas del LLM, %d de respaldo)", out_dir, n_llm, len(meta) - n_llm)
 

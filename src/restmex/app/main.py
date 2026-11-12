@@ -13,20 +13,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..config import load_config
+from ..examples import EXAMPLES
 from ..llm import LLMError
 from ..recommender import Recommender
 from ..retrieval import ArchetypeIndex
 
 logger = logging.getLogger("restmex.app")
 APP_DIR = Path(__file__).resolve().parent
-
-EXAMPLES = [
-    "Quiero un lugar tranquilo con zonas arqueológicas y buena comida tradicional",
-    "Busco fiesta, playa y vida nocturna",
-    "Me interesan pueblos coloniales con artesanías y clima frío",
-    "Naturaleza, cascadas y aventura lejos de las multitudes",
-]
-
 
 class RecommendRequest(BaseModel):
     query: str = Field(..., min_length=3, max_length=600, description="Lo que busca el viajero")
@@ -78,7 +71,10 @@ def health() -> dict[str, Any]:
             ollama = {"ok": True, "embedding_model": has(cfg.encoder.model), "llm_model": has(cfg.llm.ollama_model)}
         except LLMError as exc:
             ollama["error"] = str(exc)[:200]
-        llm_chain = [{"provider": p.name, "model": p.model, "available": p.available} for p in rec.providers]
+        llm_chain = [
+            {"provider": p.name, "model": p.model, "available": p.available, "exhausted": p.exhausted}
+            for p in rec.providers
+        ]
     index = (
         {"loaded": True, "archetypes": len(rec.index.meta), "towns": rec.index.n_towns,
          "encoder": rec.index.stats.get("encoder"), "n_train": rec.index.stats.get("n_train")}
@@ -89,8 +85,7 @@ def health() -> dict[str, Any]:
     return {
         "status": "ok" if ok else "degraded",
         "ollama": ollama,
-        "llm": {"provider": cfg.llm.provider, "gemini_configured": any(p["provider"] == "gemini" for p in llm_chain),
-                "chain": llm_chain},
+        "llm": {"chain": llm_chain, "cache": cfg.llm.cache},
         "index": index,
         "lambda": cfg.ranking.lam,
         "examples": EXAMPLES,

@@ -80,4 +80,6 @@ def index() -> ArchetypeIndex:
 
 @pytest.fixture
 def cfg() -> Config:
-    return Config()
+    config = Config()
+    config.llm.cache = False                     # las pruebas no escriben en artifacts/
+    return config

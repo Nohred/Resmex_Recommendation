@@ -30,7 +30,7 @@ from restmex.encoders import build_encoder  # noqa: E402
 from restmex.evaluate import (  # noqa: E402
     balanced_sample, choose_lambda, lambda_sweep, popularity_bias, retrieval_metrics, true_ranks,
 )
-from restmex.llm import build_llm_chain  # noqa: E402
+from restmex.llm import build_cache, build_llm_chain  # noqa: E402
 from restmex.ollama_client import OllamaClient  # noqa: E402
 from restmex.query_expansion import expand_query  # noqa: E402
 from restmex.ranking import adjusted_scores  # noqa: E402
@@ -41,7 +41,7 @@ LAMBDAS = [0.0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.
 KEYS = ["hit@1", "hit@5", "mrr", "macro_hit@1", "macro_hit@5", "macro_mrr"]
 
 
-def hyde_comparison(cfg, index, art_dir: Path, val: pd.DataFrame, val_emb: np.ndarray,
+def hyde_comparison(cfg, index, val: pd.DataFrame, val_emb: np.ndarray,
                     true_town: np.ndarray, n: int, lam: float, sample: int | None) -> dict:
     """(c) Muestra pequeña: reseña como consulta, con y sin HyDE."""
     rng = np.random.default_rng(cfg.data.seed)
@@ -51,19 +51,16 @@ def hyde_comparison(cfg, index, art_dir: Path, val: pd.DataFrame, val_emb: np.nd
 
     client = OllamaClient(cfg.ollama.host, cfg.ollama.keep_alive)
     encoder = build_encoder(cfg, client)
-    providers = build_llm_chain(cfg, client)
-    cache_path = art_dir / "hyde_eval_cache.json"
-    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+    # Cadena de evaluación (Groq → qwen): no gasta la cuota de Gemini de la demo.
+    providers = build_llm_chain(cfg, client, names=cfg.llm.eval_chain)
+    cache = build_cache(cfg)
     hydes, used = [], []
-    for i, (rid, text) in enumerate(zip(val["row_id"].to_numpy()[pick], texts)):
-        key = str(int(rid))
-        if key not in cache or cache[key]["provider"] == "plantilla":
-            exp = expand_query(text[:600], providers, cfg.llm)
-            cache[key] = {"hyde": exp.hyde, "provider": exp.provider, "model": exp.model}
-            cache_path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-            logger.info("HyDE %d/%d (%s)", i + 1, len(pick), exp.provider)
-        hydes.append(cache[key]["hyde"])
-        used.append(cache[key]["provider"])
+    for i, text in enumerate(texts):
+        exp = expand_query(text[:600], providers, cfg.llm, cache, batch=True)
+        hydes.append(exp.hyde)
+        used.append(f"{exp.provider}:{exp.model}" if exp.model else exp.provider)
+        if not exp.cached:
+            logger.info("HyDE %d/%d (%s)", i + 1, len(texts), used[-1])
 
     variants = {
         "reseña como documento (sin LLM)": val_emb[pick],
@@ -150,7 +147,7 @@ def main() -> None:
     }
     if args.hyde_sample > 0:
         metrics["hyde_comparison"] = hyde_comparison(
-            cfg, index, art_dir, val, val_emb, true_town, args.hyde_sample, lam, args.sample
+            cfg, index, val, val_emb, true_town, args.hyde_sample, lam, args.sample
         )
 
     (rep_dir / "metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")

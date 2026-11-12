@@ -56,18 +56,27 @@ class ArchetypesConfig:
 
 @dataclass
 class LLMConfig:
-    provider: str = "gemini"                     # gemini | ollama
-    gemini_model: str = "gemini-3.8-flash"
-    gemini_fallback_models: list[str] = field(default_factory=list)
+    chain: list[str] = field(default_factory=lambda: ["gemini", "groq", "ollama"])   # web y etiquetas
+    eval_chain: list[str] = field(default_factory=lambda: ["groq", "ollama"])       # evaluación con HyDE
+    gemini_model: str = "gemini-3.5-flash"
     gemini_thinking_level: Optional[str] = "low"
-    gemini_timeout: float = 15.0
-    api_key_env: str = "GEMINI_API"
+    gemini_timeout: float = 20.0
+    gemini_rpm: int = 10
+    gemini_api_key_env: str = "GEMINI_API"
+    groq_model: str = "openai/gpt-oss-120b"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_reasoning_effort: Optional[str] = "low"
+    groq_timeout: float = 30.0
+    groq_rpm: int = 30
+    groq_api_key_env: str = "GROQ_API"
     ollama_model: str = "qwen2.5:3b"
     temperature: float = 0.4
     num_predict: int = 800
     timeout: float = 90.0                        # timeout del modelo local
     retries: int = 1                             # reintentos por proveedor tras salida mal formada
-    cooldown: float = 300.0                      # s que se omite un proveedor tras fallar
+    cooldown: float = 300.0                      # s que se omite un proveedor tras un error
+    cache: bool = True                           # caché en disco de respuestas del LLM
+    cache_dir: str = "artifacts/llm_cache"
 
 
 @dataclass

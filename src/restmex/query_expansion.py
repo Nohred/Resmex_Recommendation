@@ -1,6 +1,6 @@
 """Expansión de la consulta: HyDE y Anti-HyDE con la cadena de LLM y fallback.
 
-Cadena: Gemini → modelo local en Ollama → plantilla de antónimos (sin LLM).
+Cadena: Gemini → Groq → modelo local en Ollama → plantilla de antónimos (sin LLM).
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .config import LLMConfig
-from .llm import ChainExhausted, LLMProvider, run_chain
+from .llm import ChainExhausted, LLMCache, LLMProvider, run_chain
 from .prompts import ANTONYM_DEFAULT, ANTONYM_RULES, ANTONYM_TEMPLATE, HYDE_PROMPT, HYDE_SYSTEM
 
 logger = logging.getLogger(__name__)
@@ -27,13 +27,14 @@ class QueryExpansion:
     query: str
     hyde: str
     anti_hyde: str
-    provider: str = TEMPLATE_PROVIDER      # "gemini" | "ollama" | "plantilla"
+    provider: str = TEMPLATE_PROVIDER      # "gemini" | "groq" | "ollama" | "plantilla"
     model: str = ""
     fallback: bool = False                 # True si se usó la plantilla (ningún LLM respondió)
     degraded: bool = False                 # True si no respondió el primer proveedor de la cadena
     fallback_reason: Optional[str] = None
     errors: list[str] = field(default_factory=list)
     attempts: int = 0
+    cached: bool = False                   # la respuesta salió de la caché en disco
     seconds: float = 0.0
 
 
@@ -62,7 +63,13 @@ def parse_expansion(raw: str) -> tuple[str, str]:
     return hyde, anti
 
 
-def expand_query(query: str, providers: list[LLMProvider], cfg: LLMConfig) -> QueryExpansion:
+def expand_query(
+    query: str,
+    providers: list[LLMProvider],
+    cfg: LLMConfig,
+    cache: Optional[LLMCache] = None,
+    batch: bool = False,
+) -> QueryExpansion:
     """Genera HyDE y Anti-HyDE. Nunca lanza: si ningún LLM responde, usa la plantilla.
 
     Cada proveedor tiene 1 + `cfg.retries` intentos ante una salida mal formada.
@@ -81,6 +88,8 @@ def expand_query(query: str, providers: list[LLMProvider], cfg: LLMConfig) -> Qu
             temperature=cfg.temperature,
             num_predict=cfg.num_predict,
             retries=cfg.retries,
+            cache=cache,
+            batch=batch,
         )
     except ChainExhausted as exc:
         return QueryExpansion(
@@ -106,5 +115,6 @@ def expand_query(query: str, providers: list[LLMProvider], cfg: LLMConfig) -> Qu
         fallback_reason="; ".join(res.errors) if degraded else None,
         errors=res.errors,
         attempts=res.attempts,
+        cached=res.cached,
         seconds=time.time() - start,
     )

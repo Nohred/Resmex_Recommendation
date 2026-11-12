@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -15,13 +14,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from .config import Config
 from .data import display_region, display_town
 from .encoders import l2_normalize
-from .llm import ChainExhausted, ChainResult, LLMProvider, run_chain
+from .llm import ChainExhausted, ChainResult, LLMCache, LLMProvider, run_chain
 from .prompts import LABEL_PROMPT, LABEL_PROMPT_SINGLE, LABEL_SYSTEM
 from .stopwords import SPANISH_STOPWORDS
 
 logger = logging.getLogger(__name__)
 
-MAX_QUOTA_WAIT = 90.0  # s; esperas mayores (cuota diaria) pasan al respaldo
 _TOKEN = r"(?u)\b[a-záéíóúüñ]{3,}\b"
 
 
@@ -105,8 +103,10 @@ def _review_snippet(m: dict[str, Any], n: int = 260) -> str:
     return m["representatives"][0]["text"][:n].replace('"', "'") if m.get("representatives") else ""
 
 
-def _label_town_remote(items: list[dict[str, Any]], town: str, remote: list[LLMProvider]) -> Optional[ChainResult]:
-    """Una llamada por pueblo (lote). Si la cuota por minuto se agota, espera y reintenta."""
+def _label_town_remote(
+    items: list[dict[str, Any]], town: str, remote: list[LLMProvider], cache: Optional[LLMCache]
+) -> Optional[ChainResult]:
+    """Una llamada por pueblo (lote) a los proveedores remotos, respetando sus cuotas."""
     groups = []
     for j, m in enumerate(items, start=1):
         mix = ", ".join(f"{t} {round(100 * v)}%" for t, v in m.get("type_mix", {}).items())
@@ -114,36 +114,30 @@ def _label_town_remote(items: list[dict[str, Any]], town: str, remote: list[LLMP
             f"Grupo {j} | tipo: {mix} | palabras clave: {', '.join(m['keywords'])} | reseña: \"{_review_snippet(m)}\""
         )
     prompt = LABEL_PROMPT.format(k=len(items), town=items[0].get("town_display", town), groups="\n".join(groups))
-    for _ in range(3):
-        try:
-            return run_chain(remote, prompt, _labels_parser(len(items)),
-                             system=LABEL_SYSTEM, temperature=0.2, num_predict=300, retries=1)
-        except ChainExhausted as exc:
-            wait = exc.retry_after
-            if wait is None or wait > MAX_QUOTA_WAIT:    # error real o cuota diaria: al respaldo
-                return None
-            logger.info("Cuota por minuto agotada: esperando %.0f s", wait)
-            time.sleep(wait)
-    return None
+    try:
+        return run_chain(remote, prompt, _labels_parser(len(items)), system=LABEL_SYSTEM,
+                         temperature=0.2, num_predict=300, retries=1, cache=cache, batch=True)
+    except ChainExhausted:
+        return None
 
 
-def _label_single_local(m: dict[str, Any], local: list[LLMProvider]) -> Optional[ChainResult]:
+def _label_single_local(m: dict[str, Any], local: list[LLMProvider], cache: Optional[LLMCache]) -> Optional[ChainResult]:
     """Etiqueta un solo arquetipo con el modelo local."""
     prompt = LABEL_PROMPT_SINGLE.format(keywords=", ".join(m["keywords"]), review=_review_snippet(m))
     try:
         return run_chain(local, prompt, _labels_parser(1), system=LABEL_SYSTEM,
-                         temperature=0.2, num_predict=40, retries=1)
+                         temperature=0.2, num_predict=40, retries=1, cache=cache, batch=True)
     except ChainExhausted:
         return None
 
 
 def label_archetypes(
-    meta: list[dict[str, Any]], providers: list[LLMProvider], cfg: Config, pace: float = 0.0
+    meta: list[dict[str, Any]], providers: list[LLMProvider], cfg: Config, cache: Optional[LLMCache] = None
 ) -> int:
     """Etiqueta los arquetipos (in situ) y devuelve cuántos etiquetó un LLM.
 
-    - Proveedores remotos (Gemini): una llamada por pueblo con sus ~10 grupos,
-      separadas por `pace` segundos para respetar la cuota.
+    - Proveedores remotos (Gemini, Groq): una llamada por pueblo con sus ~10
+      grupos; el limitador de tasa de cada proveedor espacia las llamadas.
     - Respaldo local (Ollama): una llamada por arquetipo.
     - Si nada responde, se conserva la etiqueta de palabras clave.
     """
@@ -154,18 +148,16 @@ def label_archetypes(
         by_town.setdefault(m["town"], []).append(m)
     labeled = 0
     for i, (town, items) in enumerate(by_town.items()):
-        res = _label_town_remote(items, town, remote) if remote else None
+        res = _label_town_remote(items, town, remote, cache) if remote else None
         if res is not None:
             for m, label in zip(items, res.value):
                 m["label"], m["label_source"] = label, f"{res.provider.name}:{res.provider.model}"
             labeled += len(items)
-            source = res.provider.model
-            if pace:
-                time.sleep(pace)
+            source = res.provider.model + (" · caché" if res.cached else "")
         else:
             n_local = 0
             for m in items:
-                one = _label_single_local(m, local) if local and m["keywords"] else None
+                one = _label_single_local(m, local, cache) if local and m["keywords"] else None
                 if one is not None:
                     m["label"], m["label_source"] = one.value[0], f"{one.provider.name}:{one.provider.model}"
                     n_local += 1

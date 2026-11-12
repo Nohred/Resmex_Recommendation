@@ -7,7 +7,9 @@ import pytest
 
 from restmex.archetypes import label_archetypes
 from restmex.config import Config, LLMConfig
-from restmex.llm import GeminiClient, GeminiError, LLMProvider, build_llm_chain, parse_retry_after
+from restmex.llm import (
+    GeminiClient, GeminiError, GroqClient, GroqError, LLMCache, LLMProvider, build_llm_chain, parse_retry_after,
+)
 from restmex.ollama_client import OllamaError
 from restmex.query_expansion import antonym_anti_hyde, expand_query, parse_expansion
 from restmex.recommender import Recommender
@@ -100,28 +102,126 @@ def test_antonym_template() -> None:
     assert "sin identidad" in antonym_anti_hyde("algo distinto")
 
 
-def test_gemini_client_requires_key_and_hides_it() -> None:
+def test_clients_require_key_and_hide_it() -> None:
     with pytest.raises(GeminiError):
         GeminiClient(None)
+    with pytest.raises(GroqError):
+        GroqClient("")
     assert "secreta" not in repr(GeminiClient("clave-secreta"))
+    assert "secreta" not in repr(GroqClient("clave-secreta"))
 
 
-def test_chain_without_key_is_ollama_only(monkeypatch) -> None:
+def test_chain_follows_config_and_skips_missing_keys(monkeypatch) -> None:
     cfg = Config()
-    cfg.llm.api_key_env = "RESTMEX_TEST_NO_KEY"
-    monkeypatch.delenv("RESTMEX_TEST_NO_KEY", raising=False)
-    assert [p.name for p in build_llm_chain(cfg)] == ["ollama"]
-    cfg.llm.provider = "ollama"
-    assert [p.model for p in build_llm_chain(cfg)] == [cfg.llm.ollama_model]
+    cfg.llm.gemini_api_key_env, cfg.llm.groq_api_key_env = "RESTMEX_T_GEM", "RESTMEX_T_GROQ"
+    monkeypatch.delenv("RESTMEX_T_GEM", raising=False)
+    monkeypatch.setenv("RESTMEX_T_GROQ", "x")
+    names = [(p.name, p.model, p.rpm) for p in build_llm_chain(cfg)]
+    assert names == [("groq", cfg.llm.groq_model, cfg.llm.groq_rpm), ("ollama", cfg.llm.ollama_model, 0)]
+    monkeypatch.setenv("RESTMEX_T_GEM", "x")
+    assert [p.name for p in build_llm_chain(cfg)] == ["gemini", "groq", "ollama"]
+    assert [p.name for p in build_llm_chain(cfg, names=cfg.llm.eval_chain)] == ["groq", "ollama"]
+    with pytest.raises(ValueError):
+        build_llm_chain(cfg, names=["otro"])
 
 
-def test_chain_with_key_orders_gemini_first(monkeypatch) -> None:
-    cfg = Config()
-    cfg.llm.api_key_env = "RESTMEX_TEST_KEY"
-    cfg.llm.gemini_fallback_models = ["gemini-b"]
-    monkeypatch.setenv("RESTMEX_TEST_KEY", "x")
-    names = [(p.name, p.model) for p in build_llm_chain(cfg)]
-    assert names == [("gemini", cfg.llm.gemini_model), ("gemini", "gemini-b"), ("ollama", cfg.llm.ollama_model)]
+def test_groq_client_request_and_errors() -> None:
+    class Resp:
+        def __init__(self, status, body, headers=None):
+            self.status_code, self._body, self.headers, self.text = status, body, headers or {}, str(body)
+
+        def json(self):
+            return self._body
+
+    class Session:
+        def __init__(self, resp):
+            self.resp, self.sent = resp, None
+
+        def post(self, url, json, timeout, headers):
+            self.sent = {"url": url, "json": json, "headers": headers}
+            return self.resp
+
+    client = GroqClient("k")
+    client._session = Session(Resp(200, {"choices": [{"message": {"content": "{}"}}]}))
+    assert client.generate("m", "hola", system="sys", json_format=True) == "{}"
+    sent = client._session.sent
+    assert sent["url"].endswith("/openai/v1/chat/completions")
+    assert sent["json"]["response_format"] == {"type": "json_object"}
+    assert [m["role"] for m in sent["json"]["messages"]] == ["system", "user"]
+
+    client._session = Session(Resp(429, {"error": {"message": "Rate limit reached"}}, {"retry-after": "7"}))
+    with pytest.raises(GroqError) as e:
+        client.generate("m", "hola")
+    assert e.value.status == 429 and e.value.retry_after == 7.0 and not e.value.daily
+
+    msg = "Rate limit reached on tokens per day (TPD): Limit 200000. Please try again in 7m12s."
+    client._session = Session(Resp(429, {"error": {"message": msg}}))
+    with pytest.raises(GroqError) as e:
+        client.generate("m", "hola")
+    assert e.value.daily and e.value.retry_after == pytest.approx(432)
+
+
+def test_parse_retry_after() -> None:
+    assert parse_retry_after("Please retry in 5h31m22.6s.") == pytest.approx(5 * 3600 + 31 * 60 + 22.6)
+    assert parse_retry_after("Please retry in 41.5s.") == pytest.approx(41.5)
+    assert parse_retry_after("otro error") is None
+
+
+def quota_error(daily: bool = False, retry_after: float | None = None, status: int = 429) -> GeminiError:
+    err = GeminiError(f"{status}")
+    err.status, err.daily, err.retry_after = status, daily, retry_after
+    return err
+
+
+def test_daily_quota_marks_provider_exhausted_for_session() -> None:
+    gemini, ollama = FakeOllama([quota_error(daily=True)]), FakeOllama([good_json(), good_json()])
+    providers = chain(gemini, ollama)
+    out = expand_query(QUERY, providers, LLMConfig())
+    assert out.provider == "ollama" and providers[0].exhausted and not providers[0].available
+    assert "cuota diaria agotada" in out.fallback_reason
+    expand_query(QUERY, providers, LLMConfig())
+    assert len(gemini.calls) == 1                # agotado: no se reintenta
+
+
+def test_transient_503_is_retried_with_backoff(monkeypatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("restmex.llm.time.sleep", sleeps.append)
+    gemini = FakeOllama([quota_error(status=503), good_json()])
+    out = expand_query(QUERY, chain(gemini, FakeOllama([])), LLMConfig())
+    assert out.provider == "gemini" and sleeps == [1.5]
+    # En modo lote se respeta el retry_after de un 429 por minuto.
+    sleeps.clear()
+    gemini = FakeOllama([quota_error(retry_after=20.0), good_json()])
+    out = expand_query(QUERY, chain(gemini, FakeOllama([])), LLMConfig(), batch=True)
+    assert out.provider == "gemini" and sleeps == [20.0]
+    # En la web no se espera 20 s: se pasa al siguiente y Gemini se enfría ese tiempo.
+    providers = chain(FakeOllama([quota_error(retry_after=20.0)]), FakeOllama([good_json()]))
+    out = expand_query(QUERY, providers, LLMConfig())
+    assert out.provider == "ollama" and not providers[0].available and not providers[0].exhausted
+
+
+def test_rate_limiter(monkeypatch) -> None:
+    prov = LLMProvider("groq", "m", FakeOllama([good_json()] * 3), rpm=2)
+    assert prov.acquire(wait=False) and prov.acquire(wait=False)
+    assert not prov.acquire(wait=False)          # tercer llamado en el mismo minuto
+    out = expand_query(QUERY, [prov, LLMProvider("ollama", "q", FakeOllama([good_json()]))], LLMConfig())
+    assert out.provider == "ollama" and "límite de solicitudes" in out.fallback_reason
+    prov._calls[0] -= 61                         # pasa el tiempo: se libera un cupo
+    assert prov.acquire(wait=False)
+
+
+def test_cache_avoids_second_call(tmp_path) -> None:
+    cache = LLMCache(tmp_path / "cache")
+    gemini = FakeOllama([good_json()])
+    providers = chain(gemini, FakeOllama([]))
+    first = expand_query(QUERY, providers, LLMConfig(), cache)
+    second = expand_query(QUERY, providers, LLMConfig(), cache)
+    assert not first.cached and second.cached and second.attempts == 0
+    assert second.hyde == first.hyde and second.provider == "gemini"
+    assert len(gemini.calls) == 1
+    # Otra consulta sí llama; una salida mal formada nunca se guarda.
+    other = expand_query("otra consulta distinta", chain(FakeOllama(["{"]), FakeOllama([])), LLMConfig(retries=0), cache)
+    assert other.fallback and len(list((tmp_path / "cache").glob("*.json"))) == 1
 
 
 def test_label_archetypes_batch_local_and_keywords(index, cfg) -> None:
@@ -131,7 +231,7 @@ def test_label_archetypes_batch_local_and_keywords(index, cfg) -> None:
     two = json.dumps({"etiquetas": ["Mariscos", "Zona arqueológica"]})
     one = json.dumps({"etiquetas": ["Fondas"]})
     bad = json.dumps({"etiquetas": ["solo una"]})
-    gemini = FakeOllama([two, bad, bad, GeminiError("503")])       # pueblo 1 ok, 2 mal formado, 3 caído
+    gemini = FakeOllama([two, bad, bad, GeminiError("sin red")])    # pueblo 1 ok, 2 mal formado, 3 caído
     ollama = FakeOllama([one, "mal", "mal", one, one])              # pueblo 2: 1 ok + 1 mal formado; pueblo 3: 2 ok
     n = label_archetypes(meta, chain(gemini, ollama), cfg)
     assert n == 2 + 1 + 2 + 0
@@ -140,18 +240,6 @@ def test_label_archetypes_batch_local_and_keywords(index, cfg) -> None:
     assert meta[3]["label"] == "Tacos, pescado, ceviche" and meta[3]["label_source"] == "keywords"
     assert meta[4]["label_source"] == "ollama:qwen-test"
     assert meta[6]["label_source"] == "keywords"     # sin respuestas: palabras clave
-
-
-def test_quota_error_sets_cooldown_from_retry_after() -> None:
-    assert parse_retry_after("Please retry in 5h31m22.6s.") == pytest.approx(5 * 3600 + 31 * 60 + 22.6)
-    assert parse_retry_after("Please retry in 41.5s.") == pytest.approx(41.5)
-    assert parse_retry_after("otro error") is None
-    err = GeminiError("429 RESOURCE_EXHAUSTED")
-    err.retry_after = 7200.0
-    providers = chain(FakeOllama([err]), FakeOllama([good_json()]))
-    out = expand_query(QUERY, providers, LLMConfig())
-    assert out.provider == "ollama"
-    assert providers[0].seconds_until_available > 7000   # cuota diaria: no se reintenta en horas
 
 
 def test_recommender_keeps_working_in_fallback(index, cfg) -> None:
