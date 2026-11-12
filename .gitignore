@@ -1,1 +1,13 @@
+# Datos y artefactos (se regeneran, ver README)
 data/raw/
+data/processed/
+artifacts/
+*.npy
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+.env

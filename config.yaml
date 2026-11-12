@@ -1,0 +1,48 @@
+# Configuración del recomendador de Pueblos Mágicos (rutas relativas a la raíz).
+
+paths:
+  raw_csv: data/raw/Rest-Mex_2025_train.csv
+  artifacts_dir: artifacts
+  reports_dir: reports
+
+data:
+  val_fraction: 0.1        # 90/10 estratificado por pueblo
+  seed: 42
+  max_chars: 1500          # truncado explícito (~375 tokens; el contexto de nomic es 512)
+  max_reviews_per_town: null   # tope opcional de reseñas por pueblo (null = todas)
+
+encoder:
+  backend: ollama          # ollama | sentence_transformers
+  model: nomic-embed-text-v2-moe
+  batch_size: 128
+  # nomic usa prefijos de tarea. Reseñas, HyDE y Anti-HyDE se comparan
+  # documento-contra-documento, así que todos usan doc_prefix.
+  doc_prefix: "search_document: "
+  query_prefix: "search_query: "     # solo para la consulta cruda (línea base sin HyDE)
+  # Backend alternativo (pip install -r requirements-optional.txt):
+  st_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+
+ollama:
+  host: http://localhost:11434
+  embed_timeout: 300
+  keep_alive: 30m
+
+archetypes:
+  k: 10
+  n_init: 10
+  seed: 42
+  n_keywords: 8
+  n_representative: 3
+  label_with_llm: true
+
+llm:
+  model: qwen2.5:3b        # p. ej. qwen2.5:7b si se descarga después
+  temperature: 0.4
+  num_predict: 800
+  timeout: 90
+  retries: 1               # reintentos tras una salida mal formada
+
+ranking:
+  lambda: 0.05             # penalización por popularidad (ver calibración en README)
+  top_k: 5
+  bottom_k: 5

@@ -1,0 +1,2 @@
+# Backend alternativo de embeddings (encoder.backend: sentence_transformers)
+sentence-transformers>=3.0
