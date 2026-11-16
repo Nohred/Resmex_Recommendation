@@ -138,6 +138,10 @@ SECTIONS: dict[str, type] = {
 }
 
 
+# Secciones que no son del recomendador: las lee el script que las usa (`load_raw`).
+EXTRA_SECTIONS: set[str] = {"barrido"}        # rejilla de `scripts/sweep_archetypes.py`
+
+
 def _build(cls: type, raw: dict[str, Any], section: str = "") -> Any:
     """Instancia `cls` ignorando (con aviso) las claves desconocidas (`lambda` → `lam`)."""
     raw = dict(raw or {})
@@ -207,7 +211,7 @@ def load_config(path: Optional[Path | str] = None) -> Config:
     if explicit or DEFAULT_CONFIG.exists():
         source = _resolve(explicit or DEFAULT_CONFIG)
         raw = load_raw(source)
-    unknown = sorted(set(raw) - set(SECTIONS))
+    unknown = sorted(set(raw) - set(SECTIONS) - EXTRA_SECTIONS)
     if unknown:
         logger.warning("Secciones desconocidas en la configuración (se ignoran): %s", unknown)
     sections = {name: _build(cls, raw.get(name, {}), name) for name, cls in SECTIONS.items()}
