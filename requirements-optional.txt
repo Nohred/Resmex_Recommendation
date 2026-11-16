@@ -1,2 +1,5 @@
 # Backend alternativo de embeddings (encoder.backend: sentence_transformers)
 sentence-transformers>=3.0   # instala PyTorch; probado con 6.3.0 + torch 2.14.1 (CUDA 13)
+
+# Idioma de las reseñas (review_quality.drop_other_languages y el diagnóstico de calidad); offline
+lingua-language-detector>=2.0

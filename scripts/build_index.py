@@ -25,6 +25,7 @@ from restmex.data import load_reviews  # noqa: E402
 from restmex.encoders import build_encoder, embed_corpus, embeddings_cache_dir, write_embeddings_ref  # noqa: E402
 from restmex.llm import build_cache, build_llm_chain  # noqa: E402
 from restmex.ollama_client import OllamaClient  # noqa: E402
+from restmex.review_quality import mask_place_names  # noqa: E402
 
 logger = logging.getLogger("build_index")
 
@@ -61,6 +62,10 @@ def main() -> None:
         return
 
     df = load_reviews(cfg, sample=args.sample or args.benchmark)
+    if cfg.review_quality.mask_place_names:
+        # Solo el texto de train (el que forma los arquetipos); cambia la huella de la caché.
+        df["text"] = mask_place_names(df, (df["split"] == "train").to_numpy())
+        logger.info("Nombres de pueblos y estados enmascarados en las reseñas de train")
 
     if args.benchmark:
         texts = df["text"].tolist()[: args.benchmark]

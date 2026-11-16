@@ -16,6 +16,7 @@ from .data import display_region, display_town
 from .encoders import l2_normalize
 from .llm import ChainExhausted, ChainResult, LLMCache, LLMProvider, run_chain
 from .prompts import LABEL_PROMPT, LABEL_PROMPT_SINGLE, LABEL_SYSTEM
+from .review_quality import is_active, review_features, select_reviews
 from .stopwords import SPANISH_STOPWORDS
 
 logger = logging.getLogger(__name__)
@@ -186,13 +187,25 @@ def build_archetypes(
     town_stats: dict[str, Any] = {}
     df = df.reset_index(drop=True)
     towns = sorted(df["town"].unique())
-    n_max = int(df["town"].value_counts().max())
+    # La popularidad (penalización λ) se mide con todas las reseñas de train, aunque se filtren.
+    n_full = df["town"].value_counts()
+    n_max = int(n_full.max())
+
+    weights = np.ones(len(df))
+    rq = cfg.review_quality
+    if is_active(rq):
+        feats = review_features(df, embeddings, rq.near_duplicate_threshold, detect_language=rq.drop_other_languages)
+        sel = select_reviews(df, feats, rq)
+        logger.info("Calidad de reseñas: quedan %d de %d (%s)", int(sel.keep.sum()), len(df),
+                    sel.reasons[sel.reasons != ""].value_counts().to_dict())
+        keep = np.flatnonzero(sel.keep)
+        df, embeddings, weights = df.iloc[keep].reset_index(drop=True), embeddings[keep], sel.weights[keep]
 
     for t_i, town in enumerate(towns):
         idx = np.flatnonzero(df["town"].to_numpy() == town)
         X = embeddings[idx]
         k = min(acfg.k, len(idx))
-        km = KMeans(n_clusters=k, n_init=acfg.n_init, random_state=acfg.seed).fit(X)
+        km = KMeans(n_clusters=k, n_init=acfg.n_init, random_state=acfg.seed).fit(X, sample_weight=weights[idx])
         labels = km.labels_
         centroids = l2_normalize(km.cluster_centers_)
         sub = df.iloc[idx]
@@ -234,7 +247,8 @@ def build_archetypes(
         town_stats[town] = {
             "town_display": display_town(town),
             "region": display_region(str(sub["region"].iloc[0])),
-            "n_reviews": int(len(idx)),
+            "n_reviews": int(n_full[town]),
+            "n_reviews_used": int(len(idx)),
             "mean_polarity": round(float(polarity.mean()), 3),
             "n_archetypes": int(k),
             "centroid_id": t_i,

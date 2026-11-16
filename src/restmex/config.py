@@ -67,6 +67,24 @@ class ArchetypesConfig:
 
 
 @dataclass
+class ReviewQualityConfig:
+    """Filtros y pesos de las reseñas de `train` que forman los arquetipos (todo apagado
+    por defecto; ver `review_quality.py`). No cambian validación, holdout ni gold."""
+
+    min_content_words: Optional[int] = None      # descarta reseñas con menos palabras de contenido
+    drop_generic_frac: Optional[float] = None    # descarta esa fracción más genérica de cada pueblo
+    drop_other_languages: bool = False           # descarta las que no están en español (lingua)
+    drop_near_duplicates: bool = False           # descarta casi duplicados dentro del pueblo
+    near_duplicate_threshold: float = 0.95       # coseno
+    min_reviews_per_town: int = 200              # piso por pueblo tras los descartes
+    weight_informativeness: bool = False         # sample_weight del K-Means = informatividad
+    weight_polarity: bool = False                # … × polaridad / 5
+    min_weight: float = 0.1                      # peso de la reseña más genérica
+    type_weights: Optional[dict[str, float]] = None   # p. ej. {Hotel: 0.5, Restaurant: 0.5, Attractive: 1.0}
+    mask_place_names: bool = False               # borra nombres de pueblos y estados del texto de train
+
+
+@dataclass
 class LLMConfig:
     chain: list[str] = field(default_factory=lambda: ["gemini", "groq", "ollama"])   # web y etiquetas
     eval_chain: list[str] = field(default_factory=lambda: ["groq", "ollama"])       # evaluación con HyDE
@@ -107,6 +125,7 @@ class Config:
     encoder: EncoderConfig = field(default_factory=EncoderConfig)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     archetypes: ArchetypesConfig = field(default_factory=ArchetypesConfig)
+    review_quality: ReviewQualityConfig = field(default_factory=ReviewQualityConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     ranking: RankingConfig = field(default_factory=RankingConfig)
     root: Path = ROOT
@@ -135,13 +154,14 @@ SECTIONS: dict[str, type] = {
     "encoder": EncoderConfig,
     "ollama": OllamaConfig,
     "archetypes": ArchetypesConfig,
+    "review_quality": ReviewQualityConfig,
     "llm": LLMConfig,
     "ranking": RankingConfig,
 }
 
 
 # Secciones que no son del recomendador: las lee el script que las usa (`load_raw`).
-EXTRA_SECTIONS: set[str] = {"barrido"}        # rejilla de `scripts/sweep_archetypes.py`
+EXTRA_SECTIONS: set[str] = {"barrido", "barrido_calidad"}   # rejillas de scripts/sweep_archetypes.py y sweep_quality.py
 
 
 def _build(cls: type, raw: dict[str, Any], section: str = "") -> Any:

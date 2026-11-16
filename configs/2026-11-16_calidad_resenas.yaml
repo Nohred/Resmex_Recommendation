@@ -1,0 +1,38 @@
+# Calidad de las reseñas que forman los arquetipos: diagnóstico y barrido de filtros / pesos.
+# Encoder y caché de embeddings de config.yaml; k = 30 con logsumexp (τ = 0.01), la líder del
+# barrido de arquetipos, fijos en todas las variantes; λ se recalibra por variante.
+# Lo corre `scripts/sweep_quality.py` (etapas: diagnostico → barrido → combinar → prueba).
+# Los filtros solo tocan las reseñas de train que entran al K-Means (sección review_quality
+# de cada variante; en config.yaml están apagados).
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_calidad_resenas
+  reports_dir: reports/exp/2026-11-16_calidad_resenas
+archetypes:
+  k: 30
+  label_with_llm: false
+ranking:
+  aggregation: lse
+  lse_tau: 0.01
+barrido_calidad:
+  vectores_holdout: artifacts/exp/2026-11-16_arquetipos_k_agg   # holdout codificado + HyDE (sin LLM)
+  umbral_duplicado: 0.95
+  muestra_por_pueblo: 1500        # idea 6: única que recodifica
+  semilla_muestra: 2025
+  variantes:
+    - {nombre: sin_filtro, idea: referencia}
+    - {nombre: min_contenido_3, idea: "1 · mínimo de palabras de contenido", review_quality: {min_content_words: 3}}
+    - {nombre: min_contenido_5, idea: "1 · mínimo de palabras de contenido", review_quality: {min_content_words: 5}}
+    - {nombre: min_contenido_8, idea: "1 · mínimo de palabras de contenido", review_quality: {min_content_words: 8}}
+    - {nombre: genericas_10, idea: "2 · % más genérico por pueblo", review_quality: {drop_generic_frac: 0.10}}
+    - {nombre: genericas_20, idea: "2 · % más genérico por pueblo", review_quality: {drop_generic_frac: 0.20}}
+    - {nombre: genericas_30, idea: "2 · % más genérico por pueblo", review_quality: {drop_generic_frac: 0.30}}
+    - {nombre: otro_idioma, idea: "3 · idioma y duplicados", review_quality: {drop_other_languages: true}}
+    - {nombre: duplicados, idea: "3 · idioma y duplicados", review_quality: {drop_near_duplicates: true}}
+    - {nombre: idioma_y_duplicados, idea: "3 · idioma y duplicados", review_quality: {drop_other_languages: true, drop_near_duplicates: true}}
+    - {nombre: peso_informatividad, idea: "4 · pesos de informatividad", review_quality: {weight_informativeness: true}}
+    - {nombre: peso_informatividad_polaridad, idea: "4 · pesos de informatividad", review_quality: {weight_informativeness: true, weight_polarity: true}}
+    - {nombre: tipo_050, idea: "5 · pesos por tipo", review_quality: {type_weights: {Hotel: 0.5, Restaurant: 0.5, Attractive: 1.0}}}
+    - {nombre: tipo_025, idea: "5 · pesos por tipo", review_quality: {type_weights: {Hotel: 0.25, Restaurant: 0.25, Attractive: 1.0}}}
+    - {nombre: muestra_1500, idea: referencia de la muestra, muestra: true}
+    - {nombre: muestra_1500_sin_nombres, idea: "6 · nombres enmascarados (muestra)", muestra: true, review_quality: {mask_place_names: true}}
