@@ -1,0 +1,14 @@
+# Selección de encoder en muestra · referencia: nomic-embed-text-v2-moe (el encoder de config.yaml).
+# Igual que la base salvo el tope de 1,500 reseñas por pueblo (53,963 reseñas en total), para
+# comparar a los candidatos sobre la misma muestra, el mismo split y la misma semilla.
+#
+# Ficha: https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe (consultada el 2026-11-15)
+#   - Prefijos obligatorios: `search_document: ` y `search_query: `.
+#   - Contexto: 512 tokens · 768 dimensiones. En Ollama: contexto 512, F16.
+#   - max_chars 1500 (~400 tokens): se conserva el de la base.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_nomic
+  reports_dir: reports/exp/2026-11-16_enc_nomic
+data:
+  max_reviews_per_town: 1500

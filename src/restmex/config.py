@@ -44,6 +44,9 @@ class EncoderConfig:
     doc_prefix: str = "search_document: "
     query_prefix: str = "search_query: "
     st_model: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    num_ctx: Optional[int] = None            # Ollama: contexto en tokens (None = el del modelo)
+    max_seq_length: Optional[int] = None     # sentence-transformers: tokens máximos (None = el del modelo)
+    fp16: bool = False                       # sentence-transformers: media precisión en GPU (~4× más rápido)
 
 
 @dataclass

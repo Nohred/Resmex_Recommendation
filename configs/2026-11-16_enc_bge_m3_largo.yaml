@@ -1,0 +1,12 @@
+# bge-m3 sin truncar: mide si aprovechar el contexto de 8,192 tokens mejora las métricas y
+# cuánto cuesta en tiempo. La reseña más larga del corpus mide 8,296 caracteres (2,010 tokens
+# con este modelo), así que max_chars 9000 equivale a no truncar; solo cambia el ~1 % de las
+# reseñas (las de más de 1,500 caracteres). Fuente y prefijos: ver 2026-11-16_enc_bge_m3.yaml.
+extends: 2026-11-16_enc_bge_m3.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_bge_m3_largo
+  reports_dir: reports/exp/2026-11-16_enc_bge_m3_largo
+data:
+  max_chars: 9000
+encoder:
+  num_ctx: 4096

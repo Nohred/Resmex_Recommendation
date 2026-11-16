@@ -71,6 +71,11 @@ def main() -> None:
         rate = len(texts) / (time.time() - t0)
         total = sum(1 for _ in open(cfg.raw_csv, encoding="utf-8", errors="ignore"))
         logger.info("%.1f textos/s → dataset completo (~%d líneas) ≈ %.0f min como máximo", rate, total, total / rate / 60)
+        chars = sum(len(t) for t in texts)
+        logger.info(
+            "Benchmark %s: %d textos · %.0f caracteres/texto · %.1f textos/s · %.0f caracteres/s",
+            encoder.name, len(texts), chars / len(texts), rate, rate * chars / len(texts),
+        )
         return
 
     out_dir.mkdir(parents=True, exist_ok=True)

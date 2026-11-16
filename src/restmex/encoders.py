@@ -64,10 +64,14 @@ class OllamaEncoder(Encoder):
         query_prefix: str = "search_query: ",
         timeout: float = 300.0,
         max_retries: int = 3,
+        num_ctx: Optional[int] = None,
     ) -> None:
         self.client = client
         self.model = model
-        self.name = f"ollama:{model}"
+        # El contexto cambia dónde se truncan los textos largos: forma parte de la identidad
+        # del encoder (y de la huella de la caché) solo cuando se fija de forma explícita.
+        self.name = f"ollama:{model}" + (f"@ctx{num_ctx}" if num_ctx else "")
+        self.num_ctx = num_ctx
         self.doc_prefix = doc_prefix
         self.query_prefix = query_prefix
         self.timeout = timeout
@@ -79,7 +83,8 @@ class OllamaEncoder(Encoder):
         last: Optional[Exception] = None
         for attempt in range(self.max_retries):
             try:
-                arr = np.asarray(self.client.embed(self.model, texts, self.timeout), dtype=np.float32)
+                extra = {"options": {"num_ctx": self.num_ctx}} if self.num_ctx else {}
+                arr = np.asarray(self.client.embed(self.model, texts, self.timeout, **extra), dtype=np.float32)
                 if not np.isfinite(arr).all():
                     raise OllamaError("El modelo devolvió valores no finitos")
                 return arr
@@ -94,22 +99,42 @@ class OllamaEncoder(Encoder):
 
 
 class SentenceTransformerEncoder(Encoder):
-    """Backend alternativo con `sentence-transformers` (sin prefijos de tarea)."""
+    """Backend alternativo con `sentence-transformers`.
 
-    def __init__(self, model: str, batch_size: int = 64) -> None:
+    Los prefijos se anteponen igual que en Ollama (p. ej. `passage: ` / `query: `
+    en la familia E5); para modelos sin prefijos se dejan vacíos en el YAML.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        batch_size: int = 64,
+        doc_prefix: str = "",
+        query_prefix: str = "",
+        max_seq_length: Optional[int] = None,
+        fp16: bool = False,
+    ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:  # pragma: no cover - dependencia opcional
             raise ImportError(
                 "Instala el backend opcional: pip install -r requirements-optional.txt"
             ) from exc
-        self.name = f"st:{model}"
+        self.name = f"st:{model}" + (f"@len{max_seq_length}" if max_seq_length else "") + ("@fp16" if fp16 else "")
         self.batch_size = batch_size
+        self.doc_prefix = doc_prefix
+        self.query_prefix = query_prefix
         self._model = SentenceTransformer(model)
+        if max_seq_length:
+            self._model.max_seq_length = max_seq_length
+        if fp16 and str(self._model.device).startswith("cuda"):
+            self._model.half()
 
     def _encode(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.zeros((0, 0), dtype=np.float32)
         return np.asarray(
-            self._model.encode(texts, batch_size=self.batch_size, show_progress_bar=False),
+            self._model.encode(texts, batch_size=self.batch_size, show_progress_bar=False, convert_to_numpy=True),
             dtype=np.float32,
         )
 
@@ -125,9 +150,17 @@ def build_encoder(cfg: Config, client: Optional[OllamaClient] = None) -> Encoder
             cfg.encoder.doc_prefix,
             cfg.encoder.query_prefix,
             cfg.ollama.embed_timeout,
+            num_ctx=cfg.encoder.num_ctx,
         )
     if backend in {"sentence_transformers", "sentence-transformers", "st"}:
-        return SentenceTransformerEncoder(cfg.encoder.st_model, cfg.encoder.batch_size)
+        return SentenceTransformerEncoder(
+            cfg.encoder.st_model,
+            cfg.encoder.batch_size,
+            cfg.encoder.doc_prefix,
+            cfg.encoder.query_prefix,
+            cfg.encoder.max_seq_length,
+            cfg.encoder.fp16,
+        )
     raise ValueError(f"Backend de encoder desconocido: {cfg.encoder.backend}")
 
 

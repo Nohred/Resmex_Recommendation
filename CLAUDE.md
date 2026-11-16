@@ -30,6 +30,7 @@ make evaluate   # métricas → <reports_dir>/metrics.json y figures/
 make test       # pytest (Ollama, Gemini y Groq simulados; no usa red)
 make serve      # web en http://127.0.0.1:8000
 make warmup     # precalienta la caché del LLM con las consultas de ejemplo
+make benchmark  # textos/s del encoder con 500 reseñas (antes de lanzar un índice largo)
 ```
 
 Todos aceptan `CONFIG=configs/<archivo>.yaml` (equivale a `RESTMEX_CONFIG`); sin él usan

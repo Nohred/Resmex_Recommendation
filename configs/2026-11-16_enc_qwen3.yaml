@@ -1,0 +1,20 @@
+# Selección de encoder en muestra · qwen3-embedding:0.6b (Ollama), con el truncado de la base.
+#
+# Ficha: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B (consultada el 2026-11-15)
+#   - Documentos sin instrucción: "No need to add instruction for retrieval documents".
+#   - Consultas: `Instruct: {tarea}\nQuery:{consulta}` (sin espacio después de `Query:`), con
+#     la tarea en inglés ("we also advise users to write their instructions in English").
+#     Se usa la tarea por defecto de la ficha; una específica de turismo sería otro experimento.
+#   - Contexto: 32k tokens (el ejemplo de la ficha usa max_length 8192) · hasta 1,024
+#     dimensiones. En Ollama: contexto 32768, cuantizado Q8_0 (no F16 como los demás).
+#   - Aquí max_chars 1500 (control); la variante larga está en 2026-11-16_enc_qwen3_largo.yaml.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_qwen3
+  reports_dir: reports/exp/2026-11-16_enc_qwen3
+data:
+  max_reviews_per_town: 1500
+encoder:
+  model: "qwen3-embedding:0.6b"
+  doc_prefix: ""
+  query_prefix: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:"
