@@ -27,6 +27,7 @@ para todo menos `make test`.
 ```bash
 make index      # datos → embeddings → arquetipos → etiquetas (reanudable; 30–85 min sin caché)
 make evaluate   # métricas → <reports_dir>/metrics.json y figures/
+make report     # protocolo del equipo: gold, holdout enmascarado, robustez → <reports_dir>/evaluation_report.{json,md}
 make test       # pytest (Ollama, Gemini y Groq simulados; no usa red)
 make serve      # web en http://127.0.0.1:8000
 make warmup     # precalienta la caché del LLM con las consultas de ejemplo
@@ -36,6 +37,12 @@ make benchmark  # textos/s del encoder con 500 reseñas (antes de lanzar un índ
 Todos aceptan `CONFIG=configs/<archivo>.yaml` (equivale a `RESTMEX_CONFIG`); sin él usan
 `config.yaml`. Para pasar banderas: `python scripts/build_index.py --config <yaml> --no-labels`,
 `python scripts/evaluate.py --config <yaml> --hyde-sample 0`.
+
+`make report ARGS="--estimate"` cuenta las llamadas nuevas al LLM sin hacer ninguna (una
+corrida completa sin caché son ~380, más que la cuota diaria de tokens de Groq);
+`--max-llm-calls N` deja lo demás pendiente y `--publish` copia el reporte a
+`docs/evaluation_report.md` y `reports/`. El gold y el banco de consultas (`eval/`) son copias
+sin editar del repo del equipo: ver `eval/PROCEDENCIA.md`.
 
 ## Experimentos
 

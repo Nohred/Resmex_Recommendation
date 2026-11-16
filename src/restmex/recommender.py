@@ -13,6 +13,7 @@ from .ollama_client import OllamaClient
 from .query_expansion import QueryExpansion, expand_query
 from .ranking import TownResult, rank_towns
 from .retrieval import ArchetypeIndex
+from .validation import validate_query
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +67,17 @@ class Recommender:
         self.providers = providers if providers is not None else build_llm_chain(cfg, self.client)
         self.cache = cache if cache is not None else build_cache(cfg)
 
-    def recommend(self, query: str, lam: Optional[float] = None) -> Recommendation:
-        """Ejecuta el pipeline completo y mide el tiempo de cada etapa."""
+    def recommend(self, query: str, lam: Optional[float] = None, batch: bool = False) -> Recommendation:
+        """Ejecuta el pipeline completo y mide el tiempo de cada etapa.
+
+        Lanza `QueryError` si la consulta no pasa la validación mínima (antes de llamar al
+        LLM). `batch=True` (evaluación) espera el cupo del proveedor en vez de saltar al
+        siguiente eslabón de la cadena.
+        """
+        query = validate_query(query)
         lam = self.cfg.ranking.lam if lam is None else lam
         t0 = time.perf_counter()
-        expansion = expand_query(query, self.providers, self.cfg.llm, self.cache)
+        expansion = expand_query(query, self.providers, self.cfg.llm, self.cache, batch=batch)
         t1 = time.perf_counter()
         # Ambos textos se codifican como documentos (ver encoders.py).
         vecs = self.encoder.encode_documents([expansion.hyde, expansion.anti_hyde])
