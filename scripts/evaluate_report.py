@@ -45,6 +45,7 @@ logger = logging.getLogger("evaluate_report")
 GOLD = ROOT / "eval/gold_queries.json"
 BANK = ROOT / "eval/query_bank.json"
 TEAM_COMMIT = "3ecbcfd"            # restmex-orbita: de ahí salen el gold, el banco y el protocolo
+HOLDOUT_IDS = ROOT / "eval/holdout_ids.json"
 HOLDOUT_SEED = 2025
 HOLDOUT_PER_TOWN = 15
 
@@ -62,8 +63,20 @@ def git_commit() -> str:
     return head + ("+cambios" if git("status", "--porcelain", "--", "src", "scripts") else "")
 
 
-def load_holdout(cfg) -> tuple[pd.DataFrame, list[str]]:
-    """Muestra del holdout (de `val`) y términos a enmascarar."""
+def holdout_key(cfg) -> str:
+    """Nombre del conjunto en `eval/holdout_ids.json`: depende de qué reseñas entran al corpus."""
+    cap = cfg.data.max_reviews_per_town
+    return f"tope_{cap}" if cap else "completo"
+
+
+def load_holdout(cfg, freeze: bool = False) -> tuple[pd.DataFrame, list[str]]:
+    """Holdout (de `val`) con los `row_id` fijos de `eval/holdout_ids.json` y términos a enmascarar.
+
+    El archivo guarda un conjunto por tamaño de corpus (`completo`, `tope_1500`, …) porque la
+    partición train/val cambia con `data.max_reviews_per_town`. Si un `row_id` ya no está en
+    `val` (cambió la semilla, la partición o el deduplicado), se detiene en vez de remuestrear.
+    Con `freeze` se crea el conjunto que falte con el muestreo de siempre; nunca se sobrescribe.
+    """
     df = load_reviews(cfg)
     try:
         raw = pd.read_csv(cfg.raw_csv, usecols=["Review"], encoding="utf-8")
@@ -72,8 +85,45 @@ def load_holdout(cfg) -> tuple[pd.DataFrame, list[str]]:
     # La elegibilidad usa la longitud de la reseña original (sin título), como en el equipo.
     df["review_len"] = raw["Review"].fillna("").str.len().to_numpy()[df["row_id"].to_numpy()]
     terms = rp.mask_terms(df[["town", "region"]].drop_duplicates().itertuples(index=False, name=None))
-    sample = rp.holdout_sample(df[df["split"] == "val"], HOLDOUT_PER_TOWN, HOLDOUT_SEED)
-    return sample, terms
+
+    key = holdout_key(cfg)
+    frozen = json.loads(HOLDOUT_IDS.read_text(encoding="utf-8")) if HOLDOUT_IDS.exists() else {
+        "descripcion": (
+            "row_id (fila del CSV de entrenamiento) de las reseñas del holdout enmascarado, en el orden "
+            "en que se evalúan. Un conjunto por tamaño de corpus; no se editan ni se regeneran."
+        ),
+        "seed": HOLDOUT_SEED,
+        "per_town": HOLDOUT_PER_TOWN,
+        "criterio": "val, polaridad >= 4, reseña original de 80 a 600 caracteres, estratificado por pueblo",
+        "conjuntos": {},
+    }
+    if key not in frozen["conjuntos"]:
+        if not freeze:
+            raise SystemExit(
+                f"eval/holdout_ids.json no tiene el conjunto `{key}`. Créalo una sola vez con "
+                "`python scripts/evaluate_report.py --config <yaml> --freeze-holdout`."
+            )
+        sample = rp.holdout_sample(df[df["split"] == "val"], HOLDOUT_PER_TOWN, HOLDOUT_SEED)
+        frozen["conjuntos"][key] = {
+            "max_reviews_per_town": cfg.data.max_reviews_per_town,
+            "val_fraction": cfg.data.val_fraction,
+            "data_seed": cfg.data.seed,
+            "n": len(sample),
+            "row_ids": [int(r) for r in sample["row_id"]],
+        }
+        HOLDOUT_IDS.write_text(json.dumps(frozen, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        logger.info("Holdout `%s` fijado en %s (%d reseñas)", key, HOLDOUT_IDS.name, len(sample))
+    ids = frozen["conjuntos"][key]["row_ids"]
+    by_id = df.set_index("row_id")
+    missing = [i for i in ids if i not in by_id.index]
+    not_val = [i for i in ids if i in by_id.index and by_id.at[i, "split"] != "val"]
+    if missing or not_val:
+        raise SystemExit(
+            f"El holdout fijo `{key}` ya no corresponde a esta configuración: {len(missing)} row_id "
+            f"no están en el corpus y {len(not_val)} no están en `val`. No se remuestrea; revisa "
+            "data.seed, data.val_fraction, data.max_reviews_per_town y el preprocesamiento."
+        )
+    return by_id.loc[ids].reset_index(), terms
 
 
 def print_estimate(est: dict) -> None:
@@ -103,6 +153,11 @@ def main() -> None:
                         help="Tope de consultas nuevas al LLM fuera del gold; el resto queda pendiente")
     parser.add_argument("--llm-gap", type=float, default=9.0,
                         help="Segundos entre llamadas nuevas al LLM (8K tokens/min ≈ 1 llamada cada 9 s)")
+    parser.add_argument("--freeze-holdout", action="store_true",
+                        help="Fija en eval/holdout_ids.json el holdout de esta configuración (si falta) y termina")
+    parser.add_argument("--calibrated-lambda", action="store_true",
+                        help="Usa el λ recalibrado en validación (`lambda_chosen` de <reports_dir>/metrics.json, "
+                             "de `make evaluate`) en lugar de `ranking.lambda` del YAML")
     parser.add_argument("--publish", action="store_true",
                         help="Copia el reporte a docs/evaluation_report.md, reports/evaluation_report.json y reports/rankings_query_bank.json")
     args = parser.parse_args()
@@ -113,6 +168,18 @@ def main() -> None:
     started = time.perf_counter()
     cfg = load_config(args.config)
     logger.info("Configuración: %s", cfg.source)
+    if args.freeze_holdout:
+        sample, _ = load_holdout(cfg, freeze=True)
+        print(f"Holdout `{holdout_key(cfg)}`: {len(sample)} reseñas, {sample['town'].nunique()} pueblos")
+        return
+    lambda_source = "ranking.lambda del YAML"
+    if args.calibrated_lambda:
+        metrics_path = cfg.reports_dir / "metrics.json"
+        if not metrics_path.exists():
+            raise SystemExit(f"Falta {metrics_path}: corre antes `make evaluate` con esta configuración.")
+        cfg.ranking.lam = float(json.loads(metrics_path.read_text(encoding="utf-8"))["lambda_chosen"])
+        lambda_source = "lambda_chosen de metrics.json (recalibrado en validación)"
+        logger.info("λ recalibrado: %s", cfg.ranking.lam)
     index = ArchetypeIndex.load(cfg.artifacts_dir)
     centroids_path = cfg.artifacts_dir / "town_centroids.npy"
     centroids = np.load(centroids_path) if centroids_path.exists() else None
@@ -173,6 +240,10 @@ def main() -> None:
 
     rep_dir = cfg.reports_dir
     rep_dir.mkdir(parents=True, exist_ok=True)
+    # Resultados por consulta del holdout (para el bootstrap pareado entre encoders): archivo aparte.
+    per_query = report.get("holdout", {}).pop("per_query", None)
+    if per_query is not None:
+        (rep_dir / "holdout_per_query.json").write_text(json.dumps(per_query, ensure_ascii=False), encoding="utf-8")
     k = len(index.meta) // index.n_towns
     chain = " → ".join([p.tag for p in providers] + ["plantilla"])
     meta = {
@@ -184,6 +255,10 @@ def main() -> None:
         "n_archetypes": len(index.meta),
         "n_towns": index.n_towns,
         "lambda": cfg.ranking.lam,
+        "lambda_source": lambda_source,
+        "max_chars": cfg.data.max_chars,
+        "max_reviews_per_town": cfg.data.max_reviews_per_town,
+        "holdout_set": holdout_key(cfg),
         "llm_chain": chain,
         "temperature": cfg.llm.temperature,
         "llm_used": ", ".join(f"{name} × {n}" for name, n in pipe.providers_used.most_common()) or "—",

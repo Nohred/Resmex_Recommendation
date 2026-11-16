@@ -231,3 +231,23 @@ def test_holdout_suite_with_fakes(index, cfg, tmp_path) -> None:
     assert set(out["leak"]) == {"original (sin enmascarar)", "canónico sin enmascarar", "canónico enmascarado"}
     assert list(out["ablation_hyde_subset"]) == list(rp.ABLATIONS)
     assert out["random_expectation"]["hit_at_5"] == 0.5          # k = 2 de 4 pueblos en la prueba
+
+
+def test_holdout_suite_exports_per_query_ranks(index, cfg, tmp_path) -> None:
+    pipe, _ = make_pipeline(index, cfg, cache=LLMCache(tmp_path))
+    sample = pd.DataFrame({
+        "row_id": [11, 12, 13, 14],
+        "town": ["Arqueo", "Arqueo", "Frio", "Playa"],
+        "text": ["Las ruinas de Arqueo son enormes, ruinas por todos lados", "Ruinas y más ruinas",
+                 "Hace mucho frío en Frio, frío de verdad", "La playa es preciosa, playa limpia"],
+    })
+    out = rp.holdout_suite(pipe, sample, rp.mask_terms([(t, "Estado") for t in index.towns]), hyde_n=2)
+    pq = out["per_query"]
+    assert pq["row_id"] == [11, 12, 13, 14] and pq["town"] == sample["town"].tolist()
+    doc = pq["rank"]["reseña como documento (sin LLM)"]
+    assert all(1 <= r <= len(index.towns) for r in doc)
+    # La media de 1/posición por consulta reproduce el MRR agregado del reporte.
+    agg = out["variants"]["reseña como documento (sin LLM)"]["metrics"]["mrr"]
+    assert abs(sum(1 / r for r in doc) / 4 - agg) < 1e-3
+    hyde = pq["rank"]["HyDE + Anti-HyDE (pipeline web)"]
+    assert sum(r is not None for r in hyde) == 2

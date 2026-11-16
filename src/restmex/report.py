@@ -600,21 +600,25 @@ def holdout_suite(
     """
     k, enc = pipe.k, pipe.rec.encoder
     towns = sample["town"].tolist()
+    row_ids = [int(r) for r in sample["row_id"]] if "row_id" in sample else list(range(len(sample)))
     original = sample["text"].tolist()
     canonical = [canonical_text(t) for t in original]
     masked = [mask_entities(t, terms) for t in original]
     keep = [i for i, t in enumerate(masked) if len(t.split()) >= 2]
     if len(keep) < len(masked):
-        towns, original, canonical, masked = ([seq[i] for i in keep] for seq in (towns, original, canonical, masked))
+        towns, row_ids, original, canonical, masked = (
+            [seq[i] for i in keep] for seq in (towns, row_ids, original, canonical, masked)
+        )
 
     texts = {"original (sin enmascarar)": original, "canónico sin enmascarar": canonical, "canónico enmascarado": masked}
     vecs = {name: {"doc": enc.encode_documents(t), "raw": enc.encode_queries(t)} for name, t in texts.items()}
     progress(f"Holdout: {len(masked)} reseñas codificadas ({len(texts)} versiones × 2 prefijos)")
     doc, raw = vecs["canónico enmascarado"]["doc"], vecs["canónico enmascarado"]["raw"]
     names = {"doc": "reseña como documento (sin LLM)", "raw": "consulta cruda (search_query)"}
+    doc_rankings, raw_rankings = pipe.score_rankings(doc), pipe.score_rankings(raw)
     variants = {
-        names["doc"]: _variant(pipe, _single_rows(pipe.score_rankings(doc), towns, k), towns),
-        names["raw"]: _variant(pipe, _single_rows(pipe.score_rankings(raw), towns, k), towns),
+        names["doc"]: _variant(pipe, _single_rows(doc_rankings, towns, k), towns),
+        names["raw"]: _variant(pipe, _single_rows(raw_rankings, towns, k), towns),
     }
 
     # HyDE + Anti-HyDE en una submuestra balanceada (cuida la cuota del LLM).
@@ -630,7 +634,22 @@ def holdout_suite(
         if n_done % 25 == 0:
             progress(f"Holdout HyDE {n_done}/{len(subset)} (nuevas llamadas al LLM: {pipe.new_calls})")
     hyde_name = "HyDE + Anti-HyDE (pipeline web)"
-    hyde_rows = _single_rows([pipe.ranking(r) for r in runs], sub_towns, k)
+    hyde_rankings = [pipe.ranking(r) for r in runs]
+    hyde_rows = _single_rows(hyde_rankings, sub_towns, k)
+    # Posición (1 = mejor) del pueblo correcto por consulta; `None` = sin HyDE para esa reseña.
+    hyde_rank: list = [None] * len(towns)
+    for pos, ranking, town in zip(sub_pos, hyde_rankings, sub_towns):
+        hyde_rank[pos] = ranking.index(town) + 1
+    per_query = {
+        "row_id": row_ids,
+        "town": towns,
+        "n_towns": len(pipe.index.towns),
+        "rank": {
+            names["doc"]: [r.index(t) + 1 for r, t in zip(doc_rankings, towns)],
+            names["raw"]: [r.index(t) + 1 for r, t in zip(raw_rankings, towns)],
+            hyde_name: hyde_rank,
+        },
+    }
     variants[hyde_name] = {
         **_variant(pipe, hyde_rows, sub_towns),
         "requested": len(subset),
@@ -696,6 +715,7 @@ def holdout_suite(
         "ablation_no_llm": ablation_full,
         "leak": leak,
         "leak_hyde_unmasked": leak_hyde,
+        "per_query": per_query,
     }
 
 
