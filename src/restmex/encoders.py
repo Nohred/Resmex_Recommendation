@@ -141,6 +141,60 @@ def corpus_fingerprint(encoder_name: str, doc_prefix: str, texts: Sequence[str])
     return h.hexdigest()
 
 
+EMBEDDINGS_REF = "embeddings_ref.json"
+
+
+def _cached_fingerprint(cache_dir: Path, name: str = "embeddings") -> Optional[str]:
+    """Huella de la caché guardada en `cache_dir` (o `None` si no hay)."""
+    state_path = cache_dir / f"{name}_state.json"
+    if not (state_path.exists() and (cache_dir / f"{name}.npy").exists()):
+        return None
+    try:
+        return json.loads(state_path.read_text()).get("fingerprint")
+    except (OSError, ValueError):
+        return None
+
+
+def embeddings_cache_dir(encoder: Encoder, texts: Sequence[str], out_dir: Path, shared_dir: Path) -> Path:
+    """Directorio donde vive la caché de embeddings de este corpus.
+
+    La caché depende solo del encoder y del preprocesamiento (la huella cubre
+    nombre del encoder, prefijo y los textos ya limpios); k, λ y el resto del
+    experimento no intervienen, así que varios experimentos la comparten.
+
+    - `out_dir` es la raíz compartida (configuración base): se usa tal cual,
+      con la disposición de siempre (`artifacts/embeddings.npy`).
+    - La caché base de `shared_dir` corresponde a este corpus: se reutiliza.
+    - En otro caso: `shared_dir/embeddings_cache/<huella>/`, sin tocar la base.
+    """
+    if out_dir.resolve() == shared_dir.resolve():
+        return out_dir
+    fp = corpus_fingerprint(encoder.name, encoder.doc_prefix, texts)
+    if _cached_fingerprint(shared_dir) == fp:
+        return shared_dir
+    return shared_dir / "embeddings_cache" / fp[:16]
+
+
+def write_embeddings_ref(out_dir: Path, cache_dir: Path, root: Path) -> None:
+    """Deja en `out_dir` un puntero a la caché compartida (si no vive ahí mismo)."""
+    if cache_dir.resolve() == out_dir.resolve():
+        return
+    try:
+        rel = str(cache_dir.resolve().relative_to(root.resolve()))
+    except ValueError:
+        rel = str(cache_dir.resolve())
+    (out_dir / EMBEDDINGS_REF).write_text(json.dumps({"dir": rel}), encoding="utf-8")
+
+
+def locate_embeddings(artifacts_dir: Path, root: Path) -> Path:
+    """Ruta de `embeddings.npy` para un índice: el puntero si existe, o el propio directorio."""
+    ref = artifacts_dir / EMBEDDINGS_REF
+    if ref.exists():
+        target = Path(json.loads(ref.read_text(encoding="utf-8"))["dir"])
+        return (target if target.is_absolute() else root / target) / "embeddings.npy"
+    return artifacts_dir / "embeddings.npy"
+
+
 def embed_corpus(
     encoder: Encoder,
     texts: Sequence[str],

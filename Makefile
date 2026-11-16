@@ -2,6 +2,10 @@ PYTHON ?= python
 HOST ?= 127.0.0.1
 PORT ?= 8000
 export PYTHONPATH := src
+# Experimentos: make index CONFIG=configs/<AAAA-MM-DD>_<nombre>.yaml (igual para evaluate, serve, warmup)
+ifdef CONFIG
+export RESTMEX_CONFIG := $(CONFIG)
+endif
 
 .PHONY: install benchmark index index-sample evaluate test serve warmup
 

@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from restmex.archetypes import build_archetypes, label_archetypes, town_centroids  # noqa: E402
 from restmex.config import load_config  # noqa: E402
 from restmex.data import load_reviews  # noqa: E402
-from restmex.encoders import build_encoder, embed_corpus  # noqa: E402
+from restmex.encoders import build_encoder, embed_corpus, embeddings_cache_dir, write_embeddings_ref  # noqa: E402
 from restmex.llm import build_cache, build_llm_chain  # noqa: E402
 from restmex.ollama_client import OllamaClient  # noqa: E402
 
@@ -39,7 +39,9 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
 
+    t_start = time.time()
     cfg = load_config(args.config)
+    logger.info("Configuración: %s", cfg.source)
     if args.no_labels:
         cfg.archetypes.label_with_llm = False
     client = OllamaClient(cfg.ollama.host, cfg.ollama.keep_alive)
@@ -73,7 +75,15 @@ def main() -> None:
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    emb = embed_corpus(encoder, df["text"].tolist(), out_dir, cfg.encoder.batch_size)
+    # La caché de embeddings es compartida entre experimentos (solo depende del
+    # encoder y del preprocesamiento); con la configuración base es `out_dir`.
+    texts = df["text"].tolist()
+    shared_dir = cfg.embeddings_dir / "sample" if args.sample else cfg.embeddings_dir
+    emb_dir = embeddings_cache_dir(encoder, texts, out_dir, shared_dir)
+    t_emb = time.time()
+    emb = embed_corpus(encoder, texts, emb_dir, cfg.encoder.batch_size)
+    emb_minutes = (time.time() - t_emb) / 60
+    write_embeddings_ref(out_dir, emb_dir, cfg.root)
     df.drop(columns=["text"]).to_csv(out_dir / "embeddings_index.csv", index=False)
 
     train_mask = (df["split"] == "train").to_numpy()
@@ -96,6 +106,10 @@ def main() -> None:
         n_llm = label_archetypes(meta, build_llm_chain(cfg, client), cfg, build_cache(cfg))
         save_meta(meta)
     logger.info("Guardado en %s (%d etiquetas del LLM, %d de respaldo)", out_dir, n_llm, len(meta) - n_llm)
+    logger.info(
+        "Indexado en %.1f min (embeddings: %.1f min, caché en %s)",
+        (time.time() - t_start) / 60, emb_minutes, emb_dir,
+    )
 
 
 if __name__ == "__main__":
