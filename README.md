@@ -111,8 +111,40 @@ make serve          # web en http://127.0.0.1:8000
 | Ruta | Descripción |
 |---|---|
 | `POST /recommend` `{"query": "...", "lambda": 0.015}` | HyDE, Anti-HyDE, Top 5, Bottom 5 (puntajes, arquetipo ganador, palabras clave, reseña representativa), tiempos por etapa, proveedor del LLM y banderas `cached` / `degraded` / `fallback` |
+| `POST /recommend/stream` (mismo cuerpo) | Lo mismo por etapas, en NDJSON: un evento `expansion` con las dos reseñas en cuanto el LLM responde y después `result` (la respuesta de `/recommend`) o `error`. Lo usa la web para mostrar las reseñas mientras se calcula el ranking |
+| `GET /towns` | Los 40 pueblos con estado, número de reseñas, coordenadas (`lat`, `lon`) y etiquetas de sus arquetipos, para el mapa |
 | `GET /health` | Estado de Ollama, cadena de LLM e índice |
 | `GET /docs` | Documentación interactiva (OpenAPI) |
+
+`/recommend` incluye además `towns`: los 40 pueblos con `sim_hyde`, `sim_anti`, `penalty`,
+`score`, etiquetas de arquetipo y `group` (`top`, `bottom` o `null`). Es un campo añadido; el
+resto de la respuesta no cambió.
+
+### La web
+
+Una sola página (HTML, CSS y JS servidos por FastAPI, sin paso de compilación ni CDN: funciona
+sin internet). El país se ve de noche y cada pueblo es una luz:
+
+- **Mapa:** al llegar el resultado se encienden los 5 del top, se apagan los 5 del bottom y
+  los demás brillan según su puntaje. El centro del país va en un recuadro ampliado porque ahí
+  hay 17 pueblos muy juntos. Con el cursor o el teclado (flechas dentro del mapa) se ve la
+  etiqueta del arquetipo de cada pueblo; Enter lleva a su tarjeta.
+- **Reseñas:** las dos que escribe el LLM (el viaje que buscas y el viaje del que huirías) se
+  van escribiendo en pantalla mientras se calcula el ranking.
+- **Afinidad contra rechazo:** cada pueblo es un punto con x = parecido con el viaje ideal e
+  y = parecido con la pesadilla; debajo hay una tabla con los 40 valores.
+- **Tarjetas:** puntaje desglosado (parecido − penalización) sobre una tira con los 40
+  pueblos, palabras clave y la reseña representativa desplegable.
+- **Estados:** el indicador de arriba a la derecha avisa si Ollama está apagado o falta el
+  índice. Si responde un modelo de respaldo o se usa la plantilla, aparece un aviso junto al
+  botón, y bajo las reseñas se lee quién las escribió y si salieron de la caché.
+- **Accesibilidad:** contraste AA, foco visible, región `aria-live` durante la carga y
+  `prefers-reduced-motion` (sin animaciones, las reseñas aparecen completas).
+
+Recursos en `src/restmex/app/static/`: `data/mexico.geojson` (Natural Earth, dominio público,
+simplificado con `scripts/build_map_assets.py`) y `vendor/fonts/` (Bricolage Grotesque y
+Newsreader, licencia OFL). Las coordenadas de los pueblos están en `src/restmex/geo.py`,
+cotejadas contra OpenStreetMap.
 
 ## Configuración del LLM
 
@@ -254,11 +286,15 @@ Resultados reales de la web (λ = 0.015, HyDE generado por Groq `openai/gpt-oss-
   consulta es el más débil: ningún Pueblo Mágico es una ciudad de rascacielos y antros, así que
   el Anti-HyDE cae en arquetipos de plazas, paseos y compras.
 
-Capturas: [inicio](reports/figures/web_inicio.png) ·
-[arqueología](reports/figures/web_consulta_1_arqueologia.png) ·
-[fiesta y playa](reports/figures/web_consulta_2_fiesta_playa.png) ·
-[colonial y frío](reports/figures/web_consulta_3_colonial_frio.png) ·
-[naturaleza](reports/figures/web_consulta_4_naturaleza.png)
+Capturas a 1440 px: [inicio](reports/figures/web_inicio.png),
+[arqueología](reports/figures/web_consulta_1_arqueologia.png),
+[fiesta y playa](reports/figures/web_consulta_2_fiesta_playa.png),
+[colonial y frío](reports/figures/web_consulta_3_colonial_frio.png),
+[naturaleza](reports/figures/web_consulta_4_naturaleza.png). A 390 px:
+[arqueología](reports/figures/web_movil_1_arqueologia.png),
+[fiesta y playa](reports/figures/web_movil_2_fiesta_playa.png),
+[colonial y frío](reports/figures/web_movil_3_colonial_frio.png),
+[naturaleza](reports/figures/web_movil_4_naturaleza.png).
 
 ### Limitaciones
 
@@ -279,10 +315,10 @@ Capturas: [inicio](reports/figures/web_inicio.png) ·
 3. **Índice presente:** `ls artifacts/archetypes.npy` (si falta: `make index`).
 4. **Precalentar:** `make warmup` deja en caché las 4 consultas de ejemplo; en la web
    responden al instante y sin gastar cuota.
-5. **Levantar la web:** `make serve` y abrir <http://127.0.0.1:8000>. El indicador junto al
-   botón debe decir "Listo".
-6. **Probar una consulta nueva** para confirmar qué proveedor responde (se ve en la etiqueta
-   "Generado por…").
+5. **Levantar la web:** `make serve` y abrir <http://127.0.0.1:8000>. El indicador de arriba
+   a la derecha debe decir "Listo".
+6. **Probar una consulta nueva** para confirmar qué proveedor responde (se lee bajo las
+   reseñas: "Escritas por…").
 
 **Si no hay internet:** las consultas de ejemplo salen de la caché (idénticas). Una consulta
 nueva pasa a `qwen2.5:3b` local: tarda 5–10 s y la interfaz avisa que respondió el modelo de
@@ -299,6 +335,7 @@ config.yaml                 # rutas, encoder, k, cadena de LLM, λ
 scripts/build_index.py      # offline: datos → embeddings → arquetipos → etiquetas
 scripts/evaluate.py         # métricas y figuras
 scripts/warmup.py           # precalienta la caché del LLM
+scripts/build_map_assets.py # regenera el mapa de la web desde Natural Earth
 src/restmex/
   config.py                 # configuración tipada
   data.py                   # ingesta, limpieza, partición 90/10
@@ -311,8 +348,9 @@ src/restmex/
   retrieval.py              # índice de arquetipos y máximo por pueblo
   ranking.py                # penalización por popularidad, Top 5 y Bottom 5
   recommender.py            # orquestación en línea y tiempos por etapa
+  geo.py                    # coordenadas de los 40 pueblos (solo para el mapa)
   evaluate.py, plots.py     # métricas y gráficas
-  app/                      # FastAPI + frontend (HTML, CSS y JS sin paso de build)
+  app/                      # FastAPI + frontend (HTML, CSS y JS sin paso de build; mapa y fuentes en static/)
 tests/                      # pytest con Ollama, Gemini y Groq simulados
 reports/                    # metrics.json y figuras
 notebooks/01_eda_restmex.ipynb
