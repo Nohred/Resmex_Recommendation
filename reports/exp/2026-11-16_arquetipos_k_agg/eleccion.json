@@ -1,0 +1,7 @@
+{
+ "elegida": "k30|lse_t0.01",
+ "motivo": "líder de calibración (reseña como documento); ninguna finalista la supera con HyDE fuera del ruido",
+ "lambda": 0.03,
+ "referencia": "k10|max",
+ "lambda_referencia": 0.015
+}
