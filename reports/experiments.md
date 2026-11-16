@@ -9,12 +9,18 @@ la muestra de 100 reseñas.
 | Fecha | Nombre | Qué cambió | Encoder | k | λ | Hit@1 | Hit@5 | MRR macro | Spearman bal. | HyDE Hit@5 | Indexado (min) | Commit |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-11-11 | base | Referencia: `config.yaml` (resultados en `reports/metrics.json`) | ollama:nomic-embed-text-v2-moe | 10 | 0.015 | 0.5343 | 0.7401 | 0.6314 | −0.0797 | 0.58 | 86 | f110f53 |
+| 2026-11-16 | 2026-11-16_baseline_nomic_k10 | Nada: misma configuración que `config.yaml`; solo `make evaluate` (el reporte con el protocolo del equipo, `make report`, queda pendiente) | ollama:nomic-embed-text-v2-moe | 10 | 0.015 | 0.5343 | 0.7401 | 0.6314 | −0.0797 | 0.58 | — | 185cd6b |
 
 ## Conclusiones
 
 - **base**: punto de comparación para las rondas de experimentos. Los arquetipos superan al
   centroide único y λ = 0.015 casi elimina el sesgo de popularidad sin perder MRR macro; HyDE
   empeora cuando la consulta ya es una reseña real (n = 100, ±10 puntos).
+- **2026-11-16_baseline_nomic_k10**: reproduce la base cifra por cifra (mismo índice; HyDE desde
+  la caché). **Pendiente**: el reporte completo con el protocolo del equipo (gold, holdout
+  enmascarado, robustez) no se ha corrido; `make report` está listo pero necesita ~380 llamadas
+  al LLM (≈ 3 días de la cuota gratuita de Groq, o un modo recortado). Sin ese reporte no hay
+  todavía comparación con las métricas del equipo.
 
 ## Benchmarks de encoders (2026-11-16)
 

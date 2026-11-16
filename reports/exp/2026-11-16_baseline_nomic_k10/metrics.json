@@ -1,0 +1,240 @@
+{
+  "encoder": "ollama:nomic-embed-text-v2-moe",
+  "n_train": 187080,
+  "n_queries": 18195,
+  "n_queries_balanced": 2520,
+  "n_towns": 40,
+  "n_archetypes": 400,
+  "lambda_chosen": 0.015,
+  "lambda_criterion": "menor |Spearman| (consultas balanceadas) entre los λ con MRR macro ≥ 99 % del mejor",
+  "variants": {
+    "1 centroide por pueblo, sin penalización": {
+      "n": 18195,
+      "hit@1": 0.4146,
+      "macro_hit@1": 0.4046,
+      "hit@5": 0.6214,
+      "macro_hit@5": 0.6136,
+      "mrr": 0.5196,
+      "macro_mrr": 0.5102,
+      "spearman_balanced": -0.1741
+    },
+    "10 arquetipos, sin penalización": {
+      "n": 18195,
+      "hit@1": 0.5516,
+      "macro_hit@1": 0.5364,
+      "hit@5": 0.7611,
+      "macro_hit@5": 0.7356,
+      "mrr": 0.6506,
+      "macro_mrr": 0.6307,
+      "spearman_balanced": 0.564
+    },
+    "10 arquetipos, λ=0.015": {
+      "n": 18195,
+      "hit@1": 0.5343,
+      "macro_hit@1": 0.5371,
+      "hit@5": 0.7401,
+      "macro_hit@5": 0.7351,
+      "mrr": 0.6327,
+      "macro_mrr": 0.6314,
+      "spearman_balanced": -0.0797
+    },
+    "1 centroide por pueblo, λ=0.015": {
+      "n": 18195,
+      "hit@1": 0.3969,
+      "macro_hit@1": 0.4024,
+      "hit@5": 0.5976,
+      "macro_hit@5": 0.6104,
+      "mrr": 0.5004,
+      "macro_mrr": 0.5081,
+      "spearman_balanced": -0.3698
+    }
+  },
+  "popularity_bias": {
+    "spearman_before": 0.564,
+    "spearman_after": -0.0797,
+    "spearman_before_all_queries": 0.809,
+    "spearman_after_all_queries": 0.652
+  },
+  "lambda_sweep": [
+    {
+      "lambda": 0.0,
+      "n": 18195,
+      "hit@1": 0.5516,
+      "macro_hit@1": 0.5364,
+      "hit@5": 0.7611,
+      "macro_hit@5": 0.7356,
+      "mrr": 0.6506,
+      "macro_mrr": 0.6307,
+      "spearman_balanced": 0.564,
+      "spearman_all": 0.809
+    },
+    {
+      "lambda": 0.005,
+      "n": 18195,
+      "hit@1": 0.5463,
+      "macro_hit@1": 0.5366,
+      "hit@5": 0.7551,
+      "macro_hit@5": 0.7367,
+      "mrr": 0.645,
+      "macro_mrr": 0.6313,
+      "spearman_balanced": 0.4012,
+      "spearman_all": 0.7666
+    },
+    {
+      "lambda": 0.01,
+      "n": 18195,
+      "hit@1": 0.5402,
+      "macro_hit@1": 0.5361,
+      "hit@5": 0.7482,
+      "macro_hit@5": 0.7364,
+      "mrr": 0.6387,
+      "macro_mrr": 0.6308,
+      "spearman_balanced": 0.2126,
+      "spearman_all": 0.7313
+    },
+    {
+      "lambda": 0.015,
+      "n": 18195,
+      "hit@1": 0.5343,
+      "macro_hit@1": 0.5371,
+      "hit@5": 0.7401,
+      "macro_hit@5": 0.7351,
+      "mrr": 0.6327,
+      "macro_mrr": 0.6314,
+      "spearman_balanced": -0.0797,
+      "spearman_all": 0.652
+    },
+    {
+      "lambda": 0.02,
+      "n": 18195,
+      "hit@1": 0.5282,
+      "macro_hit@1": 0.5366,
+      "hit@5": 0.7322,
+      "macro_hit@5": 0.7347,
+      "mrr": 0.6263,
+      "macro_mrr": 0.6309,
+      "spearman_balanced": -0.3543,
+      "spearman_all": 0.5805
+    },
+    {
+      "lambda": 0.03,
+      "n": 18195,
+      "hit@1": 0.5146,
+      "macro_hit@1": 0.5352,
+      "hit@5": 0.715,
+      "macro_hit@5": 0.7301,
+      "mrr": 0.6126,
+      "macro_mrr": 0.6294,
+      "spearman_balanced": -0.7015,
+      "spearman_all": 0.3522
+    },
+    {
+      "lambda": 0.04,
+      "n": 18195,
+      "hit@1": 0.504,
+      "macro_hit@1": 0.5357,
+      "hit@5": 0.6996,
+      "macro_hit@5": 0.7278,
+      "mrr": 0.6003,
+      "macro_mrr": 0.6282,
+      "spearman_balanced": -0.8098,
+      "spearman_all": 0.1574
+    },
+    {
+      "lambda": 0.05,
+      "n": 18195,
+      "hit@1": 0.491,
+      "macro_hit@1": 0.5317,
+      "hit@5": 0.6837,
+      "macro_hit@5": 0.725,
+      "mrr": 0.5867,
+      "macro_mrr": 0.6242,
+      "spearman_balanced": -0.8807,
+      "spearman_all": -0.0709
+    },
+    {
+      "lambda": 0.075,
+      "n": 18195,
+      "hit@1": 0.4633,
+      "macro_hit@1": 0.5241,
+      "hit@5": 0.6453,
+      "macro_hit@5": 0.7112,
+      "mrr": 0.5556,
+      "macro_mrr": 0.6152,
+      "spearman_balanced": -0.9487,
+      "spearman_all": -0.4563
+    },
+    {
+      "lambda": 0.1,
+      "n": 18195,
+      "hit@1": 0.4373,
+      "macro_hit@1": 0.5127,
+      "hit@5": 0.6064,
+      "macro_hit@5": 0.6958,
+      "mrr": 0.5266,
+      "macro_mrr": 0.6041,
+      "spearman_balanced": -0.9581,
+      "spearman_all": -0.6667
+    },
+    {
+      "lambda": 0.15,
+      "n": 18195,
+      "hit@1": 0.3891,
+      "macro_hit@1": 0.4897,
+      "hit@5": 0.542,
+      "macro_hit@5": 0.6693,
+      "mrr": 0.4738,
+      "macro_mrr": 0.5805,
+      "spearman_balanced": -0.9711,
+      "spearman_all": -0.7867
+    },
+    {
+      "lambda": 0.2,
+      "n": 18195,
+      "hit@1": 0.3429,
+      "macro_hit@1": 0.4688,
+      "hit@5": 0.4895,
+      "macro_hit@5": 0.6431,
+      "mrr": 0.4256,
+      "macro_mrr": 0.5579,
+      "spearman_balanced": -0.9655,
+      "spearman_all": -0.8083
+    },
+    {
+      "lambda": 0.3,
+      "n": 18195,
+      "hit@1": 0.25,
+      "macro_hit@1": 0.4238,
+      "hit@5": 0.3834,
+      "macro_hit@5": 0.5914,
+      "mrr": 0.3301,
+      "macro_mrr": 0.5128,
+      "spearman_balanced": -0.9656,
+      "spearman_all": -0.8293
+    }
+  ],
+  "hyde_comparison": {
+    "n": 100,
+    "lambda": 0.015,
+    "providers": {
+      "groq:openai/gpt-oss-120b": 100
+    },
+    "variants": {
+      "reseña como documento (sin LLM)": {
+        "hit@1": 0.57,
+        "hit@5": 0.75,
+        "mrr": 0.6687
+      },
+      "consulta cruda, prefijo search_query (sin HyDE)": {
+        "hit@1": 0.53,
+        "hit@5": 0.8,
+        "mrr": 0.6465
+      },
+      "HyDE generado por el LLM": {
+        "hit@1": 0.27,
+        "hit@5": 0.58,
+        "mrr": 0.4076
+      }
+    }
+  }
+}

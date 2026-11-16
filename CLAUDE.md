@@ -38,11 +38,12 @@ Todos aceptan `CONFIG=configs/<archivo>.yaml` (equivale a `RESTMEX_CONFIG`); sin
 `config.yaml`. Para pasar banderas: `python scripts/build_index.py --config <yaml> --no-labels`,
 `python scripts/evaluate.py --config <yaml> --hyde-sample 0`.
 
-`make report ARGS="--estimate"` cuenta las llamadas nuevas al LLM sin hacer ninguna (una
-corrida completa sin caché son ~380, más que la cuota diaria de tokens de Groq);
-`--max-llm-calls N` deja lo demás pendiente y `--publish` copia el reporte a
-`docs/evaluation_report.md` y `reports/`. El gold y el banco de consultas (`eval/`) son copias
-sin editar del repo del equipo: ver `eval/PROCEDENCIA.md`.
+`make report` (protocolo del equipo) usa `llm.eval_chain` y la caché del LLM: reanuda sin
+repetir llamadas. Completo y sin caché son ~380 llamadas ≈ 454 mil tokens; la capa gratuita
+de Groq da 200 mil tokens/día (≈ 160 llamadas) y 8 mil/min, así que no cabe en un día.
+`make report ARGS="--estimate"` cuenta las llamadas nuevas sin hacer ninguna. Modo recortado:
+`make report CONFIG=<yaml> ARGS="--hyde-holdout 80 --skip-robustness"` (~145 llamadas);
+`--max-llm-calls N` deja el resto pendiente y `--publish` copia a `docs/` y `reports/`.
 
 ## Experimentos
 

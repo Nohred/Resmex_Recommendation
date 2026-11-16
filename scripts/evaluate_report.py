@@ -7,6 +7,7 @@ holdout enmascarado de validación, y escribe en `<reports_dir>/`:
 Uso:
     python scripts/evaluate_report.py --estimate          # solo cuenta las llamadas nuevas al LLM
     python scripts/evaluate_report.py                     # reporte completo
+    python scripts/evaluate_report.py --hyde-holdout 80 --skip-robustness     # modo recortado
     python scripts/evaluate_report.py --hyde-holdout 80 --robustness 10 --max-llm-calls 120
     python scripts/evaluate_report.py --publish           # además copia a docs/ y reports/
 
@@ -96,6 +97,7 @@ def main() -> None:
     parser.add_argument("--hyde-holdout", type=int, default=200, help="Reseñas del holdout con HyDE (0 = omitir)")
     parser.add_argument("--hyde-unmasked", type=int, default=0, help="Reseñas sin enmascarar con HyDE (gasta cuota)")
     parser.add_argument("--robustness", type=int, default=None, help="Consultas del gold para robustez (todas por defecto; 0 = omitir)")
+    parser.add_argument("--skip-robustness", action="store_true", help="Omite la robustez (equivale a --robustness 0)")
     parser.add_argument("--no-holdout", action="store_true", help="Omite el holdout (no carga el CSV)")
     parser.add_argument("--max-llm-calls", type=int, default=None,
                         help="Tope de consultas nuevas al LLM fuera del gold; el resto queda pendiente")
@@ -104,6 +106,8 @@ def main() -> None:
     parser.add_argument("--publish", action="store_true",
                         help="Copia el reporte a docs/evaluation_report.md, reports/evaluation_report.json y reports/rankings_query_bank.json")
     args = parser.parse_args()
+    if args.skip_robustness:
+        args.robustness = 0
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     started = time.perf_counter()
