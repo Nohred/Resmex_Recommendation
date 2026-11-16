@@ -94,6 +94,8 @@ class LLMConfig:
 @dataclass
 class RankingConfig:
     lam: float = 0.015
+    aggregation: str = "max"                 # arquetipos → pueblo: "max" | "lse" (máximo suave, ver aggregation.py)
+    lse_tau: float = 0.01                    # temperatura de "lse"
     top_k: int = 5
     bottom_k: int = 5
 

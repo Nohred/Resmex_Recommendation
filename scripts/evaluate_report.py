@@ -180,7 +180,7 @@ def main() -> None:
         cfg.ranking.lam = float(json.loads(metrics_path.read_text(encoding="utf-8"))["lambda_chosen"])
         lambda_source = "lambda_chosen de metrics.json (recalibrado en validación)"
         logger.info("λ recalibrado: %s", cfg.ranking.lam)
-    index = ArchetypeIndex.load(cfg.artifacts_dir)
+    index = ArchetypeIndex.load(cfg.artifacts_dir, cfg.ranking)
     centroids_path = cfg.artifacts_dir / "town_centroids.npy"
     centroids = np.load(centroids_path) if centroids_path.exists() else None
     client = OllamaClient(cfg.ollama.host, cfg.ollama.keep_alive)

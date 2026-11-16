@@ -90,7 +90,7 @@ def main() -> None:
     rep_dir = cfg.reports_dir / "sample" if args.sample else cfg.reports_dir
     (rep_dir / "figures").mkdir(parents=True, exist_ok=True)
 
-    index = ArchetypeIndex.load(art_dir)
+    index = ArchetypeIndex.load(art_dir, cfg.ranking)
     rows = pd.read_csv(art_dir / "embeddings_index.csv")
     emb = np.load(locate_embeddings(art_dir, cfg.root), mmap_mode="r")
     if len(rows) != len(emb):

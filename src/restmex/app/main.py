@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.recommender = None
     app.state.index_error = None
     try:
-        index = ArchetypeIndex.load(artifacts)
+        index = ArchetypeIndex.load(artifacts, cfg.ranking)
         app.state.recommender = Recommender(cfg, index)
         logger.info("Índice cargado: %d arquetipos de %d pueblos", len(index.meta), index.n_towns)
     except (OSError, ValueError, KeyError) as exc:

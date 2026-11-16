@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
+
+from .aggregation import aggregate_per_town
 
 
 @dataclass
@@ -23,6 +25,16 @@ class ArchetypeIndex:
     n_reviews: np.ndarray          # (T,) reseñas de entrenamiento por pueblo
     n_max: int
     stats: dict[str, Any]
+    aggregation: str = "max"       # "max" | "lse" (`ranking.aggregation`)
+    lse_tau: float = 0.01
+
+    def configure(self, ranking: Optional[Any]) -> "ArchetypeIndex":
+        """Aplica la agregación de `cfg.ranking` (sin argumento se queda el máximo)."""
+        if ranking is not None:
+            if ranking.aggregation not in ("max", "lse"):
+                raise ValueError(f"ranking.aggregation desconocida: {ranking.aggregation} (opciones: max, lse)")
+            self.aggregation, self.lse_tau = ranking.aggregation, float(ranking.lse_tau)
+        return self
 
     @classmethod
     def from_parts(cls, vectors: np.ndarray, meta: list[dict[str, Any]], stats: dict[str, Any]) -> "ArchetypeIndex":
@@ -43,25 +55,29 @@ class ArchetypeIndex:
         )
 
     @classmethod
-    def load(cls, artifacts_dir: Path) -> "ArchetypeIndex":
+    def load(cls, artifacts_dir: Path, ranking: Optional[Any] = None) -> "ArchetypeIndex":
         """Carga `archetypes.npy`, `archetypes_meta.json` y `town_stats.json`."""
         vectors = np.load(artifacts_dir / "archetypes.npy")
         meta = json.loads((artifacts_dir / "archetypes_meta.json").read_text(encoding="utf-8"))
         stats = json.loads((artifacts_dir / "town_stats.json").read_text(encoding="utf-8"))
-        return cls.from_parts(vectors, meta, stats)
+        return cls.from_parts(vectors, meta, stats).configure(ranking)
 
     @property
     def n_towns(self) -> int:
         return len(self.towns)
 
     def town_scores(self, query_vecs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Similitud máxima por pueblo.
+        """Similitud por pueblo: máximo sobre sus arquetipos o máximo suave (`lse`).
 
         `query_vecs`: (d,) o (Q, d), normalizados. Devuelve
-        (scores (Q, T), arquetipo ganador (Q, T) como índice global).
+        (scores (Q, T), arquetipo más parecido (Q, T) como índice global).
         """
         q = np.atleast_2d(np.asarray(query_vecs, dtype=np.float32))
-        return max_per_town(q @ self.vectors.T, self.town_of, self.n_towns)
+        sims = q @ self.vectors.T
+        scores, best = max_per_town(sims, self.town_of, self.n_towns)
+        if self.aggregation == "lse":
+            scores = aggregate_per_town(sims, self.town_of, self.n_towns, "lse", tau=self.lse_tau).astype(np.float32)
+        return scores, best
 
 
 def max_per_town(sims: np.ndarray, town_of: np.ndarray, n_towns: int) -> tuple[np.ndarray, np.ndarray]:

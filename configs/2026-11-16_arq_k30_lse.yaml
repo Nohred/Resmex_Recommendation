@@ -1,0 +1,13 @@
+# Ganadora del barrido de arquetipos (configs/2026-11-16_arquetipos_k_agg.yaml): 30 arquetipos
+# por pueblo combinados con máximo suave (logsumexp, τ = 0.01) y λ recalibrado a 0.03.
+# Mismo encoder y misma caché de embeddings que config.yaml; etiquetas con el LLM.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_arq_k30_lse
+  reports_dir: reports/exp/2026-11-16_arq_k30_lse
+archetypes:
+  k: 30
+ranking:
+  lambda: 0.03
+  aggregation: lse
+  lse_tau: 0.01

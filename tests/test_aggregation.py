@@ -41,3 +41,21 @@ def test_max_big_ignores_small_clusters_but_never_empties_a_town() -> None:
 
 def test_k_log_is_clipped() -> None:
     assert k_log(653, 1) == 6 and k_log(40804, 1) == 11 and k_log(40804, 3) == 30 and k_log(5, 1) == 3
+
+
+def test_index_uses_the_configured_aggregation() -> None:
+    from restmex.config import RankingConfig
+    from restmex.retrieval import ArchetypeIndex
+
+    vectors = np.eye(4, dtype=np.float32)[:3]
+    meta = [{"town": "a"}, {"town": "a"}, {"town": "b"}]
+    stats = {"towns": {"a": {"n_reviews": 10}, "b": {"n_reviews": 5}}}
+    index = ArchetypeIndex.from_parts(vectors, meta, stats)
+    q = np.array([0.6, 0.6, 0.5, 0.0], dtype=np.float32)
+    hard, best = index.town_scores(q)
+    soft, best_soft = index.configure(RankingConfig(aggregation="lse", lse_tau=0.5)).town_scores(q)
+    np.testing.assert_allclose(hard[0], [0.6, 0.5], atol=1e-6)
+    np.testing.assert_allclose(soft[0], [0.6 + 0.5 * np.log(2), 0.5], atol=1e-6)
+    assert best.tolist() == best_soft.tolist()
+    with pytest.raises(ValueError):
+        index.configure(RankingConfig(aggregation="mediana"))
