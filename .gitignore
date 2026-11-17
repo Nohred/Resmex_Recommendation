@@ -12,3 +12,6 @@ __pycache__/
 .venv/
 .env
 reports/sample/
+
+# Exportación regenerable para la evaluación humana ciega (no es una métrica)
+reports/exp/*/rankings_query_bank.json
