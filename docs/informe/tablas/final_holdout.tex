@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+Consulta & $n$ & Hit@1 & Hit@5 & MRR & Err. bottom & Spearman & MRR base ant. \\
+\midrule
+Reseña como documento (sin LLM) & 600 & 0.470 & 0.707 & 0.581 & 0.003 & +0.052 & 0.508 \\
+Consulta cruda & 600 & 0.470 & 0.702 & 0.577 & 0.007 & $-$0.017 & 0.502 \\
+HyDE + Anti-HyDE (web) & 200 & 0.320 & 0.585 & 0.437 & 0.095 & +0.197 & --- \\
+Azar (esperado) & --- & 0.025 & 0.125 & --- & 0.125 & --- & --- \\
+\bottomrule
+\end{tabular}

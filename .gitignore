@@ -15,3 +15,13 @@ reports/sample/
 
 # Exportación regenerable para la evaluación humana ciega (no es una métrica)
 reports/exp/*/rankings_query_bank.json
+
+# Auxiliares de LaTeX (el PDF del informe sí se versiona)
+docs/informe/*.aux
+docs/informe/*.log
+docs/informe/*.out
+docs/informe/*.toc
+docs/informe/*.fls
+docs/informe/*.fdb_latexmk
+docs/informe/*.synctex.gz
+reports/rankings_query_bank.json

@@ -1,0 +1,14 @@
+\begin{tabular}{lrrrrrr}
+\toprule
+Encoder & \texttt{max\_chars} & $\lambda$ & Hit@1 & Hit@5 & MRR macro & Spearman \\
+\midrule
+nomic-embed-text-v2-moe & 1500 & 0.02 & 0.524 & 0.716 & 0.618 & $-$0.012 \\
+bge-m3 & 1500 & 0.015 & 0.520 & 0.724 & 0.618 & +0.023 \\
+bge-m3 (largo) & 9000 & 0.01 & 0.521 & 0.726 & 0.619 & +0.005 \\
+qwen3-embedding 0.6b & 1500 & 0.04 & 0.496 & 0.703 & 0.597 & $-$0.002 \\
+qwen3-embedding 0.6b (largo) & 9000 & 0.04 & 0.493 & 0.704 & 0.597 & $-$0.045 \\
+\textbf{embeddinggemma} & 1500 & 0.02 & 0.540 & 0.739 & \textbf{0.635} & +0.028 \\
+embeddinggemma (largo) & 6000 & 0.01 & 0.537 & 0.738 & 0.634 & +0.016 \\
+multilingual-e5-large & 1500 & 0.01 & 0.524 & 0.723 & 0.620 & $-$0.056 \\
+\bottomrule
+\end{tabular}

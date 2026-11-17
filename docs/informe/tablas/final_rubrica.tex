@@ -1,0 +1,12 @@
+\begin{tabular}{p{6.6cm}rrlr}
+\toprule
+Criterio & Sistema final & Umbral & Estado & Base anterior \\
+\midrule
+Precision@5 (gold, 11 consultas con $\geq$5 relevantes) & 0.764 & 0.7 & cumple & 0.691 \\
+Hit@1 (gold) & 0.725 & 0.8 & no cumple & 0.650 \\
+Contrato 5 + 5 & 1.000 & 1 & cumple & 1.000 \\
+Determinismo (con caché de LLM) & 1.000 & 1 & cumple & 1.000 \\
+Latencia p95 en caliente, LLM en caché (s, n = 40) & 0.053 & 3 & cumple & 0.030 \\
+Latencia p95 en frío, sin caché de LLM (s, n = 0) & --- & 3 & sin medir & 2.674 \\
+\bottomrule
+\end{tabular}

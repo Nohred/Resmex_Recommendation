@@ -1,0 +1,9 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+Configuración (corpus completo) & Arquetipos & $\lambda$ & Hit@1 & Hit@5 & MRR macro & Spearman $\lambda=0$ & Spearman $\lambda$ \\
+\midrule
+nomic, $k=10$, máximo (base anterior) & 400 & 0.015 & 0.534 & 0.740 & 0.631 & +0.564 & $-$0.080 \\
+nomic, $k=30$, logsumexp & 1200 & 0.03 & 0.561 & 0.762 & 0.665 & +0.755 & $-$0.042 \\
+\textbf{embeddinggemma, $k=30$, logsumexp} & 1200 & 0.03 & 0.585 & 0.784 & \textbf{0.678} & +0.653 & $-$0.152 \\
+\bottomrule
+\end{tabular}

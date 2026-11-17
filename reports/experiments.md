@@ -23,6 +23,7 @@ la muestra de 100 reseñas.
 | 2026-11-16 | 2026-11-16_enc_e5_large | Encoder multilingual-e5-large (sentence-transformers, fp16, `passage: `/`query: `), misma muestra | st:intfloat/multilingual-e5-large@len512@fp16 | 10 | 0.01 | 0.5237 | 0.7230 | 0.6204 | −0.0561 | — (HyDE va en `make report`) | 16.7 | aeb9d2c |
 | 2026-11-16 | 2026-11-16_comparacion_encoders | Sin corrida: `scripts/compare_encoders.py` lee los ocho `make report` de la ronda `enc_*` y calcula el bootstrap pareado contra `enc_nomic` (`comparacion.md`) | — | 10 | — | — | — | — | — | — | — | ba7ff07 |
 | 2026-11-16 | 2026-11-16_gemma_k30_lse | Las dos ganadoras juntas sobre el corpus completo: encoder embeddinggemma (con sus prefijos), k = 30 y agregación logsumexp (τ = 0.01); `make evaluate` sin HyDE | ollama:embeddinggemma | 30 | 0.03 | 0.5846 | 0.7841 | 0.6775 | −0.1518 | — | 69.0 (embeddings 66.0; sin etiquetas del LLM) | ba7ff07 |
+| 2026-11-16 | base (nueva) | Corrida de la base adoptada (`config.yaml` = `2026-11-16_gemma_k30_lse`): `make evaluate` con HyDE y `make report --publish` completo (gold, holdout, robustez) | ollama:embeddinggemma | 30 | 0.03 | 0.5846 | 0.7841 | 0.6775 | −0.1518 | 0.64 | — (índice copiado del experimento) | a70eac5 |
 
 ## Conclusiones
 
@@ -95,6 +96,14 @@ la muestra de 100 reseñas.
   aquí son 18 mil consultas de validación y coincide en signo con la ronda de encoders.
   **Se adopta como nueva base** (`config.yaml`, en su propio commit). Los YAML anteriores que
   heredan de `config.yaml` describen sus corridas contra el `config.yaml` del commit de su fila.
+- **base (nueva)**: `reports/metrics.json` reproduce `2026-11-16_gemma_k30_lse` cifra por cifra. HyDE
+  en validación (n = 100, ±10 puntos): Hit@5 0.64 frente a 0.79 de la consulta cruda. Reporte del
+  equipo (`docs/evaluation_report.md`, 127 llamadas nuevas al LLM, robustez incluida): gold Hit@1
+  0.725, P@5 en consultas amplias 0.764, MRR 0.819, nDCG@5 0.720 (base anterior: 0.650 / 0.691 /
+  0.767 / 0.631); holdout con la reseña como documento MRR 0.581 frente a 0.508; con HyDE 0.437
+  (136 de 200 expansiones con qwen2.5:3b por cuota de Groq agotada); Jaccard de robustez 0.546;
+  adversariales 0.800. Cumple la rúbrica salvo Hit@1 (umbral 0.8). El gold y el holdout no se
+  usaron para elegir nada de esta configuración.
 
 ## Benchmarks de encoders (2026-11-16)
 

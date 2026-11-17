@@ -1,0 +1,16 @@
+\begin{tabular}{lll}
+\toprule
+Caso & Esperado & Resultado \\
+\midrule
+vacía & reject & pasa \\
+una palabra & reject & pasa \\
+solo stopwords & reject\_or\_low & pasa \\
+fuera de vocabulario & reject\_or\_low & falla \\
+solo números & reject\_or\_low & pasa \\
+emoji & serve & pasa \\
+html & serve & pasa \\
+muy larga & serve & pasa \\
+todo negado & reject & pasa \\
+pueblo excluido & serve & falla \\
+\bottomrule
+\end{tabular}

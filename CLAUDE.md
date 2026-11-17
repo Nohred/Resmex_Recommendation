@@ -1,23 +1,36 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # RestMex_Recommendation
 
 Recomendador semántico de Pueblos Mágicos sobre Rest-Mex 2025 (~208 mil reseñas, 40 pueblos).
-Detalle, decisiones y resultados de referencia: `README.md` y `reports/metrics.json`.
+Detalle, decisiones y resultados de referencia: `README.md`, `reports/metrics.json`,
+`reports/experiments.md` (registro) y `docs/informe/informe.pdf` (qué se probó y qué se concluyó).
 
 ## Arquitectura
 
 1. `data.py`: CSV → limpieza (ftfy, NFKC), título + reseña, truncado a 1,500 caracteres,
    deduplicado y partición 90/10 estratificada por pueblo (`train` / `val`).
-2. `encoders.py`: embeddings L2 con `nomic-embed-text-v2-moe` vía Ollama (prefijo
-   `search_document: `); caché reanudable en disco, compartida entre experimentos.
-3. `archetypes.py`: K-Means por pueblo (k = 10, solo `train`) → 400 arquetipos con palabras
-   clave TF-IDF y etiqueta del LLM.
+2. `encoders.py`: embeddings L2 con `embeddinggemma` vía Ollama (prefijo de documento
+   `title: none | text: `); caché reanudable en disco, compartida entre experimentos.
+3. `archetypes.py`: K-Means por pueblo (k = 30, solo `train`) → 1,200 arquetipos con palabras
+   clave TF-IDF y etiqueta del LLM. `review_quality.py` (filtros y pesos) está apagado por defecto.
 4. `query_expansion.py` + `llm.py` + `prompts.py`: HyDE / Anti-HyDE con la cadena
    Gemini → Groq → qwen2.5:3b → plantilla, con cuotas y caché (`artifacts/llm_cache`).
-5. `retrieval.py` + `ranking.py`: coseno contra arquetipos, máximo por pueblo y
-   `score = sim − λ·log(1+n)/log(1+n_max)`; Top 5 y Bottom 5 (Anti-HyDE).
-6. `recommender.py` y `app/`: orquestación en línea y web FastAPI (`POST /recommend`).
+5. `retrieval.py` + `aggregation.py` + `ranking.py`: coseno contra arquetipos, agregación por
+   pueblo según `ranking.aggregation` (`lse`, máximo suave con τ = 0.01; `max` es el anterior) y
+   `score = sim − λ·log(1+n)/log(1+n_max)` con λ = 0.03; Top 5 y Bottom 5 (Anti-HyDE).
+   `ArchetypeIndex.town_scores` es el único punto donde se agrega: ranking, mapa de la web
+   (`ranking.town_overview`) y evaluación pasan por ahí.
+6. `recommender.py` y `app/`: orquestación en dos etapas (`expand` → `rank`) y web FastAPI
+   (`POST /recommend`, `/recommend/stream` en NDJSON, `GET /towns`); frontend sin build ni CDN
+   en `app/static/` (`tests/test_web_assets.py` verifica que funcione sin red).
 7. `scripts/build_index.py` (offline), `scripts/evaluate.py` (métricas y figuras),
    `scripts/warmup.py` (caché del LLM). `config.py` carga el YAML en dataclasses.
+8. Evaluación del equipo: `report.py` + `scripts/evaluate_report.py` (gold, holdout enmascarado
+   con los `row_id` de `eval/holdout_ids.json`, ablación, robustez) y `bootstrap.py` (IC pareado).
+   Barridos: `scripts/sweep_archetypes.py`, `scripts/sweep_quality.py`, `scripts/compare_encoders.py`.
 
 ## Comandos
 
@@ -25,10 +38,11 @@ Requieren `conda activate bigdata` (con el Python base faltan dependencias) y Ol
 para todo menos `make test`.
 
 ```bash
-make index      # datos → embeddings → arquetipos → etiquetas (reanudable; 30–85 min sin caché)
+make index      # datos → embeddings → arquetipos → etiquetas (reanudable; ~70 min sin caché)
 make evaluate   # métricas → <reports_dir>/metrics.json y figures/
 make report     # protocolo del equipo: gold, holdout enmascarado, robustez → <reports_dir>/evaluation_report.{json,md}
 make test       # pytest (Ollama, Gemini y Groq simulados; no usa red)
+PYTHONPATH=src python -m pytest tests/test_ranking.py::<nombre> -q   # una sola prueba
 make serve      # web en http://127.0.0.1:8000
 make warmup     # precalienta la caché del LLM con las consultas de ejemplo
 make benchmark  # textos/s del encoder con 500 reseñas (antes de lanzar un índice largo)
@@ -58,6 +72,15 @@ de Groq da 200 mil tokens/día (≈ 160 llamadas) y 8 mil/min, así que no cabe 
   si no, se crea `artifacts/embeddings_cache/<huella>/`. El directorio del experimento guarda
   `embeddings_ref.json` como puntero.
 - Registro acumulativo: `reports/experiments.md`.
+- La base cambió el 2026-11-16 (antes: nomic, k = 10, máximo, λ = 0.015; reproducible con
+  `configs/2026-11-11_base_nomic_k10.yaml`). Los YAML anteriores que heredan de `config.yaml`
+  describen sus corridas contra el `config.yaml` del commit de su fila en el registro, no el actual.
+- `artifacts/embeddings.npy` es la caché del encoder base; las de otros encoders (incluida la de
+  nomic) viven en `artifacts/embeddings_cache/<huella>/`.
+- El ruido de semilla del K-Means es ±0.017 de MRR macro en el holdout: una diferencia menor
+  entre dos índices no decide nada sin repetir semillas.
+- Informe: `python docs/informe/generar_tablas.py && (cd docs/informe && latexmk -pdf informe.tex)`;
+  las tablas salen de los JSON de `reports/`, no se editan a mano.
 
 ## Reglas
 
