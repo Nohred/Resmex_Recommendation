@@ -19,6 +19,9 @@ barrido_calidad:
   umbral_duplicado: 0.95
   muestra_por_pueblo: 1500        # idea 6: única que recodifica
   semilla_muestra: 2025
+  # Ruido del K-Means: quitar 0.1 % de las reseñas movía el MRR macro de calibración ±0.03,
+  # así que cada variante se repite con otras semillas y se elige con la media.
+  semillas_extra: [7, 123, 2025]
   variantes:
     - {nombre: sin_filtro, idea: referencia}
     - {nombre: min_contenido_3, idea: "1 · mínimo de palabras de contenido", review_quality: {min_content_words: 3}}

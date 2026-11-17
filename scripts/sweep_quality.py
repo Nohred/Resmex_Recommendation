@@ -16,8 +16,10 @@ en la sección `barrido_calidad:`. Las consultas de evaluación no cambian entre
 Etapas:
     python scripts/sweep_quality.py --config configs/<yaml> --etapa diagnostico   # reports/diagnostico_resenas.md
     python scripts/sweep_quality.py --config configs/<yaml> --etapa barrido       # una fila por variante
+    python scripts/sweep_quality.py --config configs/<yaml> --etapa semillas      # ruido del K-Means (semillas_extra)
     python scripts/sweep_quality.py --config configs/<yaml> --etapa combinar      # las 2 mejores ideas juntas
     python scripts/sweep_quality.py --config configs/<yaml> --etapa prueba        # una sola vez
+    python scripts/sweep_quality.py --config configs/<yaml> --etapa descartadas   # 20 descartadas para revisar a mano
 """
 from __future__ import annotations
 
@@ -221,12 +223,15 @@ def _fit(path: str, X: np.ndarray, w: np.ndarray, k: int, n_init: int, seed: int
     Path(tmp).replace(path)
 
 
-def build_index(ctx: Context, name: str, rows: np.ndarray, weights: np.ndarray, emb: Optional[np.ndarray] = None) -> dict:
-    """K-Means (k del YAML) por pueblo con las reseñas `rows` y sus pesos; en disco, reanudable."""
+def build_index(ctx: Context, name: str, rows: np.ndarray, weights: np.ndarray, emb: Optional[np.ndarray] = None,
+                seed: Optional[int] = None) -> dict:
+    """K-Means (k del YAML) por pueblo con las reseñas `rows` y sus pesos; en disco, reanudable.
+    `seed` distinta de `archetypes.seed` guarda en `kmeans/<nombre>__s<semilla>/`."""
     from joblib import Parallel, delayed
 
     ac = ctx.cfg.archetypes
-    d = ctx.out / "kmeans" / name
+    seed = ac.seed if seed is None else int(seed)
+    d = ctx.out / "kmeans" / (name if seed == ac.seed else f"{name}__s{seed}")
     d.mkdir(parents=True, exist_ok=True)
     towns = ctx.df["town"].to_numpy()[rows]
     jobs = []
@@ -241,8 +246,8 @@ def build_index(ctx: Context, name: str, rows: np.ndarray, weights: np.ndarray, 
     if jobs:
         t0 = time.time()
         jobs.sort(key=lambda j: -j[0])
-        Parallel(n_jobs=ctx.jobs)(delayed(_fit)(p, X, w, k, ac.n_init, ac.seed, key) for _, p, X, w, k, key in jobs)
-        logger.info("%s: %d K-Means en %.1f min", name, len(jobs), (time.time() - t0) / 60)
+        Parallel(n_jobs=ctx.jobs)(delayed(_fit)(p, X, w, k, ac.n_init, seed, key) for _, p, X, w, k, key in jobs)
+        logger.info("%s (semilla %d): %d K-Means en %.1f min", name, seed, len(jobs), (time.time() - t0) / 60)
     vecs, town_of = [], []
     for t_i, t in enumerate(ctx.towns):
         data = np.load(d / f"{t}.npz")
@@ -279,19 +284,19 @@ def rq_config(overrides: Optional[dict]) -> ReviewQualityConfig:
     return ReviewQualityConfig(**(overrides or {}))
 
 
-def run_variant(ctx: Context, v: dict, val, gold: dict) -> dict:
+def variant_index(ctx: Context, v: dict, seed: Optional[int] = None):
+    """Selección de reseñas y K-Means de una variante: (índice, filas, pesos, selección)."""
     rq = rq_config(v.get("review_quality"))
     base_rows = ctx.sample_rows() if v.get("muestra") else ctx.train
     feats = ctx.train_features().loc[ctx.df.index[base_rows]]
-    sub = ctx.df.iloc[base_rows]
-    sel = rq_mod.select_reviews(sub, feats, rq)
-    rows = base_rows[sel.keep]
-    weights = sel.weights[sel.keep]
-    emb = None
-    if rq.mask_place_names:
-        emb_all = ctx.masked_embeddings(base_rows)
-        emb = emb_all[sel.keep]
-    ix = build_index(ctx, v["nombre"], rows, weights, emb)
+    sel = rq_mod.select_reviews(ctx.df.iloc[base_rows], feats, rq)
+    rows, weights = base_rows[sel.keep], sel.weights[sel.keep]
+    emb = ctx.masked_embeddings(base_rows)[sel.keep] if rq.mask_place_names else None
+    return build_index(ctx, v["nombre"], rows, weights, emb, seed), base_rows, rows, weights, sel
+
+
+def run_variant(ctx: Context, v: dict, val, gold: dict, seed: Optional[int] = None) -> dict:
+    ix, base_rows, rows, weights, sel = variant_index(ctx, v, seed)
 
     val_emb, val_true, bal = val
     s_val = scores(ctx, val_emb, ix)
@@ -386,94 +391,196 @@ def render_table(results: list[dict]) -> str:
     return "\n".join(L) + "\n"
 
 
-def best_ideas(results: list[dict], n: int = 2) -> list[dict]:
-    """La mejor variante de cada idea (por MRR macro de calibración, desempate nDCG@5 del gold);
-    luego las `n` ideas con mayor ganancia frente a su referencia, solo si la ganancia es > 0."""
+def seeds(ctx: Context) -> list[int]:
+    """Semilla del YAML (la del barrido) y las extra del ruido del K-Means."""
+    return [int(ctx.cfg.archetypes.seed)] + [int(s) for s in ctx.grid.get("semillas_extra", [])]
+
+
+def run_seeds(ctx: Context, out_dir: Path) -> None:
+    """Las mismas variantes con otras semillas del K-Means: cuánto cambia el resultado solo por
+    la inicialización (con 0.1 % de reseñas menos el MRR macro de calibración se movía ±0.03)."""
+    path = out_dir / "barrido_semillas.json"
+    if path.exists():
+        raise SystemExit(f"{path} ya existe: los resultados no se sobrescriben.")
+    base = json.loads((out_dir / "barrido_calidad.json").read_text(encoding="utf-8"))
+    ctx.holdout()
+    val, gold = ctx.validation(), ctx.gold()
+    started = time.time()
+    runs = {str(seeds(ctx)[0]): base["variantes"]}
+    for s in seeds(ctx)[1:]:
+        runs[str(s)] = [run_variant(ctx, v, val, gold, seed=s) for v in ctx.grid["variantes"]]
+    pooled = pool_runs(ctx, runs)
+    path.write_text(json.dumps({"meta": {**meta_block(ctx, gold, started), "semillas": seeds(ctx)},
+                                "agregado": pooled, "por_semilla": runs}, ensure_ascii=False, indent=1), encoding="utf-8")
+    text = render_pooled(pooled, seeds(ctx))
+    (out_dir / "barrido_semillas.md").write_text(text, encoding="utf-8")
+    print(text)
+
+
+def pool_runs(ctx: Context, runs: dict[str, list[dict]], extra: Optional[dict[str, dict]] = None) -> list[dict]:
+    """Por variante: media y desviación entre semillas, y Δ frente a su referencia con el
+    recíproco del rango de cada consulta promediado sobre las semillas (bootstrap pareado)."""
+    names = [r["nombre"] for r in next(iter(runs.values()))] + ([next(iter(extra.values()))["nombre"]] if extra else [])
+    by_seed = {s: {r["nombre"]: r for r in rs} for s, rs in runs.items()}
+    if extra:
+        for s, r in extra.items():
+            by_seed[s][r["nombre"]] = r
+    out = []
+    for name in names:
+        rs = [by_seed[s][name] for s in by_seed]
+        ref_name = REF_SAMPLE if rs[0]["muestra"] else REF
+        refs = [by_seed[s][ref_name] for s in by_seed]
+        rr = np.mean([1.0 / np.asarray(r["_ranks"]) for r in rs], axis=0)
+        rr_ref = np.mean([1.0 / np.asarray(r["_ranks"]) for r in refs], axis=0)
+        g = np.mean([r["_gold_ndcg"] for r in rs], axis=0)
+        g_ref = np.mean([r["_gold_ndcg"] for r in refs], axis=0)
+        groups = np.asarray(rs[0]["_cal_true"])
+        cal = [r["calibracion"]["mrr_macro"] for r in rs]
+        d_cal = [r["calibracion"]["mrr_macro"] - f["calibracion"]["mrr_macro"] for r, f in zip(rs, refs)]
+        gold_v = [r["gold"]["ndcg_at_5"] for r in rs]
+        spear = [r["val"]["spearman"] for r in rs]
+        out.append({
+            "nombre": name, "idea": rs[0]["idea"], "muestra": rs[0]["muestra"], "review_quality": rs[0]["review_quality"],
+            "referencia": ref_name, "resenas": rs[0]["resenas"], "lambdas": [r["lambda"] for r in rs],
+            "calib_mrr_macro": {"media": round(float(np.mean(cal)), 4), "de": round(float(np.std(cal, ddof=1)), 4), "por_semilla": cal},
+            "delta_calib_por_semilla": [round(d, 4) for d in d_cal],
+            "gold_ndcg_at_5": {"media": round(float(np.mean(gold_v)), 4), "de": round(float(np.std(gold_v, ddof=1)), 4), "por_semilla": gold_v},
+            "spearman": {"media": round(float(np.mean(spear)), 4), "de": round(float(np.std(spear, ddof=1)), 4), "por_semilla": spear},
+            "vs_referencia": None if name == ref_name else {
+                "mrr_macro": paired_bootstrap(rr, rr_ref, groups, N_BOOT, BOOT_SEED),
+                "gold_ndcg_at_5": paired_bootstrap(g, g_ref, None, N_BOOT, BOOT_SEED)},
+        })
+    return out
+
+
+def render_pooled(pooled: list[dict], seed_list: list[int]) -> str:
+    L = [f"Media ± desviación entre {len(seed_list)} semillas del K-Means ({', '.join(map(str, seed_list))}). Δ: recíproco "
+         "del rango de cada consulta promediado sobre las semillas y bootstrap pareado (IC95; * = sin el 0).", "",
+         "| Variante | Idea | Reseñas que quedan | Mín. por pueblo | λ por semilla | MRR macro calib. | Δ vs ref. [IC95] | "
+         "Δ por semilla | nDCG@5 gold (25) | Δ gold [IC95] | Spearman |",
+         "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for r in pooled:
+        c, res = r["vs_referencia"], r["resenas"]
+
+        def fmt(b):
+            return f"{b['diff']:+.4f} [{b['ci95'][0]:+.3f}, {b['ci95'][1]:+.3f}]{' *' if b['significant'] else ''}"
+        L.append(
+            f"| {r['nombre']} | {r['idea']} | {res['quedan']:,} de {res['base']:,} ({100 * res['quedan'] / res['base']:.1f} %) | "
+            f"{res['por_pueblo_min']} ({res['pueblo_min']}) | {', '.join(f'{x:g}' for x in r['lambdas'])} | "
+            f"{r['calib_mrr_macro']['media']:.4f} ± {r['calib_mrr_macro']['de']:.4f} | {fmt(c['mrr_macro']) if c else '—'} | "
+            f"{' '.join(f'{d:+.3f}' for d in r['delta_calib_por_semilla']) if c else '—'} | "
+            f"{r['gold_ndcg_at_5']['media']:.4f} ± {r['gold_ndcg_at_5']['de']:.4f} | {fmt(c['gold_ndcg_at_5']) if c else '—'} | "
+            f"{r['spearman']['media']:+.3f} ± {r['spearman']['de']:.3f} |")
+    return "\n".join(L) + "\n"
+
+
+def best_ideas(pooled: list[dict], n: int = 2) -> list[dict]:
+    """La mejor variante de cada idea por MRR macro medio de calibración entre semillas
+    (desempate: nDCG@5 medio del gold sin las consultas test); luego las `n` ideas con mayor
+    Δ promediado sobre semillas frente a su referencia. Se toman aunque Δ no sea > 0 (se
+    pidió combinar las 2 mejores); el reporte dice si alguna es mejora real."""
     best: dict[str, dict] = {}
-    for r in results:
-        if r["nombre"] in (REF, REF_SAMPLE):
+    key = lambda r: (r["calib_mrr_macro"]["media"], r["gold_ndcg_at_5"]["media"])  # noqa: E731
+    for r in pooled:
+        if r["vs_referencia"] is None:
             continue
-        key = (r["calibracion"]["mrr_macro"], r["gold"]["ndcg_at_5"])
-        if r["idea"] not in best or key > (best[r["idea"]]["calibracion"]["mrr_macro"], best[r["idea"]]["gold"]["ndcg_at_5"]):
+        if r["idea"] not in best or key(r) > key(best[r["idea"]]):
             best[r["idea"]] = r
     gain = lambda r: (r["vs_referencia"]["mrr_macro"]["diff"], r["vs_referencia"]["gold_ndcg_at_5"]["diff"])  # noqa: E731
-    ranked = sorted(best.values(), key=gain, reverse=True)
-    return [r for r in ranked if gain(r)[0] > 0][:n]
+    return sorted(best.values(), key=gain, reverse=True)[:n]
 
 
 def run_combine(ctx: Context, out_dir: Path) -> None:
     path = out_dir / "combinacion.json"
     if path.exists():
         raise SystemExit(f"{path} ya existe: la combinación no se repite.")
-    data = json.loads((out_dir / "barrido_calidad.json").read_text(encoding="utf-8"))
-    chosen = best_ideas(data["variantes"])
-    if len(chosen) < 2:
-        raise SystemExit(f"Solo {len(chosen)} idea(s) mejoran a su referencia en calibración: no hay combinación de 2.")
+    data = json.loads((out_dir / "barrido_semillas.json").read_text(encoding="utf-8"))
+    chosen = best_ideas(data["agregado"])
     merged: dict = {}
     for r in chosen:
         merged.update(r["review_quality"])
     combo = {"nombre": "combinacion", "idea": " + ".join(r["idea"] for r in chosen), "review_quality": merged,
              "muestra": any(r["muestra"] for r in chosen)}
+    if combo["muestra"] and not all(r["muestra"] for r in chosen):
+        logger.warning("La combinación incluye el enmascarado: se evalúa sobre la muestra de %s por pueblo",
+                       ctx.grid["muestra_por_pueblo"])
     ctx.holdout()
     val, gold = ctx.validation(), ctx.gold()
-    res = run_variant(ctx, combo, val, gold)
-    by = {r["nombre"]: r for r in data["variantes"]}
-    ref = by[REF_SAMPLE] if res["muestra"] else by[REF]
-    res["vs_referencia"] = {"referencia": ref["nombre"], **compare(res, ref)}
-    for r in chosen:
-        res.setdefault("vs_componentes", {})[r["nombre"]] = compare(res, r)
-    out = {"componentes": [r["nombre"] for r in chosen], "regla": best_ideas.__doc__, "variante": res, "commit": git_commit()}
+    extra = {str(s): run_variant(ctx, combo, val, gold, seed=s) for s in seeds(ctx)}
+    pooled = pool_runs(ctx, data["por_semilla"], extra)
+    by = {r["nombre"]: r for r in pooled}
+    res = by["combinacion"]
+    rr = lambda name: np.mean([1.0 / np.asarray(({**{r["nombre"]: r for r in data["por_semilla"][s]}, "combinacion": extra[s]})[name]["_ranks"])  # noqa: E731
+                               for s in extra], axis=0)
+    groups = np.asarray(extra[str(seeds(ctx)[0])]["_cal_true"])
+    res["vs_componentes"] = {r["nombre"]: paired_bootstrap(rr("combinacion"), rr(r["nombre"]), groups, N_BOOT, BOOT_SEED)
+                             for r in chosen}
+    out = {"componentes": [r["nombre"] for r in chosen], "regla": best_ideas.__doc__, "variante": res,
+           "por_semilla": extra, "commit": git_commit()}
     path.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(render_table([ref] + chosen + [res]))
+    text = render_pooled([by[res["referencia"]]] + chosen + [res], seeds(ctx))
+    (out_dir / "combinacion.md").write_text(text, encoding="utf-8")
+    print(text)
 
 
 def run_test(ctx: Context, out_dir: Path) -> None:
+    """Mitad de prueba, una sola vez: combinación contra su referencia con cada semilla; el
+    recíproco del rango (y el nDCG@5 del gold test) se promedia por consulta sobre las semillas
+    antes del bootstrap pareado."""
     path = out_dir / "prueba.json"
     if path.exists():
         raise SystemExit(f"{path} ya existe: la mitad de prueba se evalúa una sola vez.")
-    combo = json.loads((out_dir / "combinacion.json").read_text(encoding="utf-8"))["variante"]
-    sweep = {r["nombre"]: r for r in json.loads((out_dir / "barrido_calidad.json").read_text(encoding="utf-8"))["variantes"]}
-    ref = sweep[REF_SAMPLE] if combo["muestra"] else sweep[REF]
+    comb = json.loads((out_dir / "combinacion.json").read_text(encoding="utf-8"))
+    runs = json.loads((out_dir / "barrido_semillas.json").read_text(encoding="utf-8"))["por_semilla"]
+    combo_runs = comb["por_semilla"]
+    ref_name = REF_SAMPLE if comb["variante"]["muestra"] else REF
     ctx.holdout()
     gold = ctx.gold()
-    systems = {}
-    for v in (ref, combo):
-        rq = rq_config(v["review_quality"])
-        base_rows = ctx.sample_rows() if v["muestra"] else ctx.train
-        sel = rq_mod.select_reviews(ctx.df.iloc[base_rows], ctx.train_features().loc[ctx.df.index[base_rows]], rq)
-        emb = ctx.masked_embeddings(base_rows)[sel.keep] if rq.mask_place_names else None
-        systems[v["nombre"]] = (build_index(ctx, v["nombre"], base_rows[sel.keep], sel.weights[sel.keep], emb), v["lambda"])
+    ids, vecs = ctx.doc["prueba"]
+    true = np.array([ctx.pos[ctx.hold_town[r]] for r in ids])
+    h_ids, h, a, providers = ctx.hyde["prueba"]
+    h_true = np.array([ctx.pos[ctx.hold_town[r]] for r in h_ids])
 
-    def ranks_for(name: str) -> dict:
-        ix, lam = systems[name]
-        pen = popularity_penalty(ctx.n_reviews, ctx.n_max, lam)
-        ids, vecs = ctx.doc["prueba"]
-        true = np.array([ctx.pos[ctx.hold_town[r]] for r in ids])
-        h_ids, h, a, _ = ctx.hyde["prueba"]
-        h_true = np.array([ctx.pos[ctx.hold_town[r]] for r in h_ids])
-        g = gold_metrics(ctx, ix, lam, gold, lambda s: s == "test")
-        return {"doc": (positions(scores(ctx, vecs, ix) - pen, true), true),
-                "hyde": (positions(scores(ctx, h, ix) - pen, h_true, scores(ctx, a, ix)), h_true),
+    def evaluate(v: dict, seed: int) -> dict:
+        ix = variant_index(ctx, v, seed)[0]
+        pen = popularity_penalty(ctx.n_reviews, ctx.n_max, v["lambda"])
+        g = gold_metrics(ctx, ix, v["lambda"], gold, lambda s: s == "test")
+        return {"doc": positions(scores(ctx, vecs, ix) - pen, true),
+                "hyde": positions(scores(ctx, h, ix) - pen, h_true, scores(ctx, a, ix)),
                 "gold": np.array([r["ndcg_at_5"] for r in g])}
 
-    r_ref, r_new = ranks_for(ref["nombre"]), ranks_for(combo["nombre"])
-    result: dict[str, Any] = {"combinacion": combo["review_quality"], "referencia": ref["nombre"], "commit": git_commit(),
-                              "lambda": {ref["nombre"]: ref["lambda"], "combinacion": combo["lambda"]},
-                              "llm_hyde": ctx.hyde["prueba"][3], "bootstrap": {"n_boot": N_BOOT, "seed": BOOT_SEED}}
-    for key, label in (("doc", "holdout prueba · reseña enmascarada como documento"),
-                       ("hyde", "holdout prueba · HyDE + Anti-HyDE (pipeline web)")):
-        (a, groups), (b, _) = r_new[key], r_ref[key]
+    per_seed = {}
+    for s in seeds(ctx):
+        ref = next(r for r in runs[str(s)] if r["nombre"] == ref_name)
+        per_seed[s] = {"ref": evaluate(ref, s), "new": evaluate(combo_runs[str(s)], s)}
+    result: dict[str, Any] = {
+        "combinacion": comb["variante"]["review_quality"], "componentes": comb["componentes"], "referencia": ref_name,
+        "semillas": seeds(ctx), "commit": git_commit(), "llm_hyde": providers,
+        "lambda": {"referencia": [next(r for r in runs[str(s)] if r["nombre"] == ref_name)["lambda"] for s in seeds(ctx)],
+                   "combinacion": [combo_runs[str(s)]["lambda"] for s in seeds(ctx)]},
+        "bootstrap": {"n_boot": N_BOOT, "seed": BOOT_SEED, "unidad": "consulta; métrica promediada sobre semillas"},
+    }
+    for key, label, groups in (("doc", "holdout prueba · reseña enmascarada como documento", true),
+                               ("hyde", "holdout prueba · HyDE + Anti-HyDE (pipeline web)", h_true)):
+        rr_new = np.mean([1.0 / per_seed[s]["new"][key] for s in per_seed], axis=0)
+        rr_ref = np.mean([1.0 / per_seed[s]["ref"][key] for s in per_seed], axis=0)
+        h5_new = np.mean([(per_seed[s]["new"][key] <= 5).astype(float) for s in per_seed], axis=0)
+        h5_ref = np.mean([(per_seed[s]["ref"][key] <= 5).astype(float) for s in per_seed], axis=0)
         result[label] = {
-            "n": int(len(a)),
-            "combinacion": {"mrr_macro": with_ci(1.0 / a, groups), "hit_at_5": with_ci((a <= 5).astype(float), None)},
-            "referencia": {"mrr_macro": with_ci(1.0 / b, groups), "hit_at_5": with_ci((b <= 5).astype(float), None)},
-            "diferencia": {"mrr_macro": paired_bootstrap(1.0 / a, 1.0 / b, groups, N_BOOT, BOOT_SEED),
-                           "hit_at_5": paired_bootstrap((a <= 5).astype(float), (b <= 5).astype(float), None, N_BOOT, BOOT_SEED)},
+            "n": int(len(rr_new)),
+            "combinacion": {"mrr_macro": with_ci(rr_new, groups), "hit_at_5": with_ci(h5_new, None)},
+            "referencia": {"mrr_macro": with_ci(rr_ref, groups), "hit_at_5": with_ci(h5_ref, None)},
+            "diferencia": {"mrr_macro": paired_bootstrap(rr_new, rr_ref, groups, N_BOOT, BOOT_SEED),
+                           "hit_at_5": paired_bootstrap(h5_new, h5_ref, None, N_BOOT, BOOT_SEED)},
+            "delta_mrr_macro_por_semilla": {
+                str(s): round(float(summary(per_seed[s]["new"][key], groups, ctx.T)["mrr_macro"]
+                                    - summary(per_seed[s]["ref"][key], groups, ctx.T)["mrr_macro"]), 4) for s in per_seed},
         }
+    g_new = np.mean([per_seed[s]["new"]["gold"] for s in per_seed], axis=0)
+    g_ref = np.mean([per_seed[s]["ref"]["gold"] for s in per_seed], axis=0)
     result["gold test · nDCG@5"] = {
-        "n": int(len(r_new["gold"])),
-        "combinacion": with_ci(r_new["gold"], None), "referencia": with_ci(r_ref["gold"], None),
-        "diferencia": paired_bootstrap(r_new["gold"], r_ref["gold"], None, N_BOOT, BOOT_SEED),
+        "n": int(len(g_new)), "combinacion": with_ci(g_new, None), "referencia": with_ci(g_ref, None),
+        "diferencia": paired_bootstrap(g_new, g_ref, None, N_BOOT, BOOT_SEED),
     }
     path.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=1))
@@ -636,14 +743,14 @@ def run_diagnostic(ctx: Context, out_dir: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--etapa", required=True, choices=["diagnostico", "barrido", "combinar", "prueba", "descartadas"])
+    parser.add_argument("--etapa", required=True, choices=["diagnostico", "barrido", "semillas", "combinar", "prueba", "descartadas"])
     parser.add_argument("--jobs", type=int, default=5, help="K-Means en paralelo (2 hilos cada uno)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
     cfg = load_config(args.config)
     ctx = Context(cfg, args.jobs)
     out_dir = cfg.reports_dir
-    {"diagnostico": run_diagnostic, "barrido": run_sweep, "combinar": run_combine,
+    {"diagnostico": run_diagnostic, "barrido": run_sweep, "semillas": run_seeds, "combinar": run_combine,
      "prueba": run_test, "descartadas": run_discarded}[args.etapa](ctx, out_dir)
 
 
