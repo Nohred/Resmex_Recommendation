@@ -22,6 +22,7 @@ la muestra de 100 reseñas.
 | 2026-11-16 | 2026-11-16_enc_gemma_largo | embeddinggemma con su contexto completo (`max_chars` 6000) | ollama:embeddinggemma | 10 | 0.01 | 0.5367 | 0.7377 | 0.6343 | +0.0156 | — (HyDE va en `make report`) | 21.9 | 390e092 |
 | 2026-11-16 | 2026-11-16_enc_e5_large | Encoder multilingual-e5-large (sentence-transformers, fp16, `passage: `/`query: `), misma muestra | st:intfloat/multilingual-e5-large@len512@fp16 | 10 | 0.01 | 0.5237 | 0.7230 | 0.6204 | −0.0561 | — (HyDE va en `make report`) | 16.7 | aeb9d2c |
 | 2026-11-16 | 2026-11-16_comparacion_encoders | Sin corrida: `scripts/compare_encoders.py` lee los ocho `make report` de la ronda `enc_*` y calcula el bootstrap pareado contra `enc_nomic` (`comparacion.md`) | — | 10 | — | — | — | — | — | — | — | ba7ff07 |
+| 2026-11-16 | 2026-11-16_gemma_k30_lse | Las dos ganadoras juntas sobre el corpus completo: encoder embeddinggemma (con sus prefijos), k = 30 y agregación logsumexp (τ = 0.01); `make evaluate` sin HyDE | ollama:embeddinggemma | 30 | 0.03 | 0.5846 | 0.7841 | 0.6775 | −0.1518 | — | 69.0 (embeddings 66.0; sin etiquetas del LLM) | ba7ff07 |
 
 ## Conclusiones
 
@@ -83,6 +84,17 @@ la muestra de 100 reseñas.
   se corrió (commit f9152a8, sin robustez): gold Hit@1 0.650, P@5 en consultas amplias 0.691, MRR
   0.767, nDCG@5 0.631; contrato, determinismo y latencia en caliente cumplen la rúbrica, Hit@1 y
   P@5 no. Es el punto de comparación del score final.
+- **2026-11-16_gemma_k30_lse**: regla fijada antes de correr: adoptar embeddinggemma solo si en
+  validación supera el MRR macro de nomic con la misma configuración de arquetipos (0.6646,
+  `2026-11-16_arq_k30_lse`). Lo supera: MRR macro 0.6775 (+0.013), Hit@1 micro 0.585 frente a 0.561
+  y Hit@5 0.784 frente a 0.762; frente a la base (nomic, k = 10) son +0.046 de MRR macro y +5.0
+  puntos de Hit@1. La ganancia del encoder en la muestra con k = 10 (+0.017) se conserva con k = 30,
+  así que los dos cambios se suman. λ = 0.03 otra vez; la rejilla es gruesa en esa zona (Spearman
+  +0.19 con 0.02 y −0.15 con 0.03), de modo que el sesgo queda algo sobrecorregido. Una sola semilla
+  del K-Means y sin IC: la diferencia es del tamaño del ruido de semilla medido en el holdout, pero
+  aquí son 18 mil consultas de validación y coincide en signo con la ronda de encoders.
+  **Se adopta como nueva base** (`config.yaml`, en su propio commit). Los YAML anteriores que
+  heredan de `config.yaml` describen sus corridas contra el `config.yaml` del commit de su fila.
 
 ## Benchmarks de encoders (2026-11-16)
 
