@@ -46,8 +46,8 @@ def test_base_config_unchanged(monkeypatch) -> None:
     assert cfg.artifacts_dir == ROOT / "artifacts"
     assert cfg.reports_dir == ROOT / "reports"
     assert cfg.embeddings_dir == cfg.artifacts_dir      # los embeddings siguen en artifacts/
-    assert (cfg.archetypes.k, cfg.ranking.lam) == (10, 0.015)
-    assert cfg.encoder.model == "nomic-embed-text-v2-moe"
+    assert (cfg.archetypes.k, cfg.ranking.lam) == (30, 0.03)
+    assert cfg.encoder.model == "embeddinggemma"
     assert cfg.source == ROOT / "config.yaml"
 
 

@@ -1,0 +1,18 @@
+# Base anterior (hasta el 2026-11-16): nomic-embed-text-v2-moe, k = 10, máximo y λ = 0.015.
+# Se conserva para reproducir la fila `base` del registro después de adoptar
+# 2026-11-16_gemma_k30_lse como `config.yaml`. Su índice se movió sin cambios de `artifacts/`
+# a `artifacts/exp/2026-11-11_base_nomic_k10/` y sus resultados (antes en `reports/`) están
+# en `reports/exp/2026-11-11_base_nomic_k10/`.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-11_base_nomic_k10
+  reports_dir: reports/exp/2026-11-11_base_nomic_k10
+encoder:
+  model: nomic-embed-text-v2-moe
+  doc_prefix: "search_document: "
+  query_prefix: "search_query: "
+archetypes:
+  k: 10
+ranking:
+  lambda: 0.015
+  aggregation: max
