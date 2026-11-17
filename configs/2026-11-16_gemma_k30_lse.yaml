@@ -1,0 +1,21 @@
+# Verificación de las dos ganadoras juntas: embeddinggemma (primera en la selección de encoder
+# en muestra, 2026-11-16_enc_gemma.yaml) con la ganadora del barrido de arquetipos
+# (2026-11-16_arq_k30_lse.yaml: k = 30, logsumexp τ = 0.01), sobre el corpus completo.
+# Regla de adopción, solo con validación: se adopta si el MRR macro supera al de nomic con
+# k = 30 (0.6646); si no, la base nueva es 2026-11-16_arq_k30_lse.
+# Prefijos y ficha del modelo: ver 2026-11-16_enc_gemma.yaml. λ: se fija con `lambda_chosen`
+# de `make evaluate` (el valor de abajo es el de nomic k = 30 hasta recalibrar).
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_gemma_k30_lse
+  reports_dir: reports/exp/2026-11-16_gemma_k30_lse
+encoder:
+  model: embeddinggemma
+  doc_prefix: "title: none | text: "
+  query_prefix: "task: search result | query: "
+archetypes:
+  k: 30
+ranking:
+  lambda: 0.03
+  aggregation: lse
+  lse_tau: 0.01
