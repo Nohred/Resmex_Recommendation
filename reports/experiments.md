@@ -12,6 +12,7 @@ la muestra de 100 reseñas.
 | 2026-11-16 | 2026-11-16_baseline_nomic_k10 | Nada: misma configuración que `config.yaml`; solo `make evaluate` (el reporte con el protocolo del equipo, `make report`, queda pendiente) | ollama:nomic-embed-text-v2-moe | 10 | 0.015 | 0.5343 | 0.7401 | 0.6314 | −0.0797 | 0.58 | — | 185cd6b |
 | 2026-11-16 | 2026-11-16_arquetipos_k_agg | Barrido de k (fijo 1–30, k = a·ln n, silhouette) × agregación (máximo, media de 2, logsumexp, máximo sin clústeres pequeños), λ recalibrado por combinación; 61 combinaciones con `scripts/sweep_archetypes.py` (resultados en `barrido.json`, no en `metrics.json`) | ollama:nomic-embed-text-v2-moe | 1–30 | por combinación | — | — | — | — | — | 10 (caché; solo K-Means) | aeb9d2c |
 | 2026-11-16 | 2026-11-16_arq_k30_lse | Ganadora del barrido: k = 30, agregación logsumexp (τ = 0.01) y λ = 0.03; `make evaluate` sin HyDE | ollama:nomic-embed-text-v2-moe | 30 | 0.03 | 0.5608 | 0.7622 | 0.6646 | −0.0420 | — | 10 (caché; K-Means 10.3 min, etiquetado interrumpido) | 390e092 |
+| 2026-11-16 | 2026-11-16_calidad_resenas | Filtros y pesos de calidad de las reseñas de train que forman los arquetipos (14 variantes + muestra de 1,500 / pueblo con nombres enmascarados), k = 30 lse fijo, λ recalibrado, 4 semillas del K-Means; `scripts/sweep_quality.py` (resultados en `resumen.md`, no en `metrics.json`) | ollama:nomic-embed-text-v2-moe | 30 | 0.015–0.05 por variante | — | — | — | — | — | 99 (caché; K-Means de 16 variantes × 4 semillas, + 10.4 min de codificar la muestra enmascarada) | b2c63d9 (barrido) · 3ff12d2 (semillas, combinación, prueba) |
 
 ## Conclusiones
 
@@ -42,6 +43,18 @@ la muestra de 100 reseñas.
   penalización sería +0.755). Etiquetas del LLM incompletas: 240 de 1,200 arquetipos (8 pueblos, Gemini)
   antes de que Gemini y Groq agotaran la cuota diaria; el resto tiene la etiqueta de palabras clave
   y se completa con `build_index.py --relabel`. No se corrió `make report` (sin cuota de LLM).
+- **2026-11-16_calidad_resenas**: diagnóstico en `reports/diagnostico_resenas.md` (3.6 % de reseñas
+  genéricas, 0.14 % en otro idioma, 0.05 % casi duplicadas, 27.6 % nombran su pueblo; 36 % de Hotel y
+  Restaurant hablan solo del servicio). El ruido del K-Means domina: la referencia k = 30 lse da
+  0.556 / 0.527 / 0.533 / 0.515 de MRR macro en calibración con 4 semillas (la 42 traía el sesgo del
+  ganador del barrido anterior), así que todo se compara por semilla y con la media. Ningún filtro
+  mejora el holdout fuera del ruido; solo bajar Hotel y Restaurant a 0.25 empeora (−0.028, IC sin el
+  0). En el gold (25 consultas sin las `test`), quitar o restar peso a lo genérico sube el nDCG@5
+  entre +0.018 y +0.035 con IC sin el 0. Combinación de las 2 mejores ideas en calibración (nombres
+  enmascarados + ≥ 8 palabras, en la muestra de 1,500): **prueba** documento +0.007 [−0.011, +0.026],
+  HyDE +0.022 [−0.011, +0.055], gold `test` −0.020 [−0.059, +0.018]. No se adopta; `review_quality`
+  queda apagado por defecto. Las conclusiones del barrido de arquetipos con una sola semilla
+  (Δ +0.075 de k = 30) conviene revisarlas con este mismo ruido de semilla en mente.
 
 ## Benchmarks de encoders (2026-11-16)
 
