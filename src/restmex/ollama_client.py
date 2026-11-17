@@ -31,13 +31,14 @@ class OllamaClient:
         except (requests.RequestException, ValueError) as exc:
             raise OllamaError(f"Fallo en {path}: {exc}") from exc
 
-    def embed(self, model: str, texts: list[str], timeout: float = 300.0) -> list[list[float]]:
-        """`POST /api/embed` con una lista de textos."""
-        data = self._post(
-            "/api/embed",
-            {"model": model, "input": texts, "truncate": True, "keep_alive": self.keep_alive},
-            timeout,
-        )
+    def embed(
+        self, model: str, texts: list[str], timeout: float = 300.0, options: Optional[dict[str, Any]] = None,
+    ) -> list[list[float]]:
+        """`POST /api/embed` con una lista de textos (`options`: p. ej. `{"num_ctx": 8192}`)."""
+        payload = {"model": model, "input": texts, "truncate": True, "keep_alive": self.keep_alive}
+        if options:
+            payload["options"] = options
+        data = self._post("/api/embed", payload, timeout)
         embeddings = data.get("embeddings")
         if not isinstance(embeddings, list) or len(embeddings) != len(texts):
             raise OllamaError("Respuesta de /api/embed con un número inesperado de vectores")

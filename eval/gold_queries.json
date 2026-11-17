@@ -1,0 +1,500 @@
+{
+ "description": "Seed heurístico curado con conocimiento general de los 40 Pueblos Mágicos. NO es ground truth definitivo: su autor vio resultados previos del sistema (artifacts/evaluation_report.json), por lo que la independencia no es demostrable. Úsese como prueba de regresión y guía; la evidencia no sesgada es el holdout autosupervisado y las etiquetas humanas ciegas. 'relevant' = aceptables en top 5; 'excluded' = no deben aparecer en top 5.",
+ "version": 1,
+ "provenance": {
+  "author": "asistente de IA (Claude) a petición del equipo",
+  "method": "conocimiento general + palabras clave del corpus",
+  "saw_system_output": true,
+  "created": "2026-11-11"
+ },
+ "reviewer_status": "pendiente de revisión y adjudicación humana",
+ "queries": [
+  {
+   "id": "playa-snorkel",
+   "category": "playa",
+   "query": "Quiero playas tranquilas, agua turquesa y snorkel",
+   "relevant": [
+    "Isla_Mujeres",
+    "Tulum",
+    "Sayulita",
+    "Mazunte",
+    "TodosSantos",
+    "Loreto",
+    "Bacalar"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "piramides",
+   "category": "arqueologia",
+   "query": "Busco pirámides, arqueología e historia prehispánica",
+   "relevant": [
+    "Teotihuacan",
+    "Cholula",
+    "Palenque",
+    "Tulum",
+    "Malinalco",
+    "Izamal",
+    "Tepoztlan",
+    "Cuetzalan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "vino",
+   "category": "vino",
+   "query": "Me interesan viñedos, vino y recorridos por bodegas",
+   "relevant": [
+    "Parras",
+    "Dolores_Hidalgo",
+    "Bernal",
+    "Tequisquiapan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "bosque",
+   "category": "montana",
+   "query": "Quiero bosque, montaña, cabañas y senderismo",
+   "relevant": [
+    "Creel",
+    "Tapalpa",
+    "Valle_de_Bravo",
+    "Zacatlan",
+    "Huasca_de_Ocampo",
+    "Cuetzalan",
+    "Real_de_Catorce"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "cenotes",
+   "category": "agua-dulce",
+   "query": "Busco cenotes para nadar y naturaleza",
+   "relevant": [
+    "Valladolid",
+    "Tulum",
+    "Bacalar",
+    "Izamal"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "gastronomia",
+   "category": "gastronomia",
+   "query": "Quiero gastronomía mexicana, mercados y restaurantes tradicionales",
+   "relevant": [
+    "Patzcuaro",
+    "Tlaquepaque",
+    "Izamal",
+    "Valladolid",
+    "San_Cristobal_de_las_Casas",
+    "Tepoztlan",
+    "Cholula",
+    "Atlixco",
+    "Ajijic"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "colonial",
+   "category": "cultura",
+   "query": "Deseo arquitectura colonial, iglesias y calles históricas",
+   "relevant": [
+    "Taxco",
+    "San_Cristobal_de_las_Casas",
+    "Patzcuaro",
+    "Izamal",
+    "Cholula",
+    "Dolores_Hidalgo",
+    "Valladolid",
+    "Tepotzotlan",
+    "Orizaba",
+    "Atlixco"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "cascadas",
+   "category": "naturaleza",
+   "query": "Quiero cascadas, vegetación y aventura al aire libre",
+   "relevant": [
+    "Xilitla",
+    "Palenque",
+    "Zacatlan",
+    "Cuetzalan",
+    "Huasca_de_Ocampo",
+    "Chiapa_de_Corzo",
+    "Tapalpa"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "termales",
+   "category": "relax",
+   "query": "Busco un viaje relajante con spa y aguas termales",
+   "relevant": [
+    "Ixtapan_de_la_Sal",
+    "Tequisquiapan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "desierto",
+   "category": "negacion",
+   "query": "Quiero desierto y paisajes naturales, sin playa",
+   "relevant": [
+    "Cuatro_Cienegas",
+    "Real_de_Catorce",
+    "Parras"
+   ],
+   "excluded": [
+    "Tulum",
+    "Isla_Mujeres",
+    "Sayulita",
+    "Mazunte",
+    "TodosSantos",
+    "Loreto"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "tequila",
+   "category": "bebidas",
+   "query": "Quiero visitar destilerías y conocer el proceso del tequila",
+   "relevant": [
+    "Tequila"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "cafe",
+   "category": "bebidas",
+   "query": "Pueblo cafetalero con niebla, café de altura y clima fresco",
+   "relevant": [
+    "Coatepec",
+    "Cuetzalan",
+    "Xilitla",
+    "Orizaba",
+    "San_Cristobal_de_las_Casas",
+    "Zacatlan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "plata",
+   "category": "artesania",
+   "query": "Comprar joyería de plata y recorrer calles empedradas en cerro",
+   "relevant": [
+    "Taxco"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "laguna",
+   "category": "agua-dulce",
+   "query": "Laguna de siete colores para navegar en kayak",
+   "relevant": [
+    "Bacalar"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "surf",
+   "category": "playa",
+   "query": "Aprender surf, ambiente relajado y tacos frente al mar",
+   "relevant": [
+    "Sayulita",
+    "TodosSantos",
+    "Mazunte",
+    "Tulum"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "tortugas",
+   "category": "playa",
+   "query": "Ver tortugas, atardeceres en la punta y ambiente bohemio",
+   "relevant": [
+    "Mazunte",
+    "Isla_Mujeres",
+    "TodosSantos"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "canon",
+   "category": "naturaleza",
+   "query": "Paseo en lancha por un cañón con cocodrilos",
+   "relevant": [
+    "Chiapa_de_Corzo"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "lago",
+   "category": "naturaleza",
+   "query": "Caminar junto al lago, malecón tranquilo y comida con vista al agua",
+   "relevant": [
+    "Ajijic",
+    "Patzcuaro",
+    "Valle_de_Bravo",
+    "Bacalar",
+    "Creel"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "surrealista",
+   "category": "cultura",
+   "query": "Jardín surrealista con esculturas en la selva y pozas",
+   "relevant": [
+    "Xilitla"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "artesania",
+   "category": "artesania",
+   "query": "Artesanías de barro, mariachi y tiendas de arte popular",
+   "relevant": [
+    "Tlaquepaque",
+    "Metepec",
+    "Patzcuaro",
+    "Atlixco"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "teleferico",
+   "category": "cultura",
+   "query": "Subir en teleférico y visitar museos en la ciudad",
+   "relevant": [
+    "Orizaba",
+    "Taxco",
+    "Tepotzotlan",
+    "Zacatlan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "monolito",
+   "category": "naturaleza",
+   "query": "Escalar un monolito enorme y comer gorditas",
+   "relevant": [
+    "Bernal"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "prismas",
+   "category": "naturaleza",
+   "query": "Formaciones de prismas basálticos, haciendas y tirolesa",
+   "relevant": [
+    "Huasca_de_Ocampo"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "fantasma",
+   "category": "cultura",
+   "query": "Pueblo minero fantasma, túnel y paseo a caballo por el desierto",
+   "relevant": [
+    "Real_de_Catorce"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "barrancas",
+   "category": "montana",
+   "query": "Barrancas profundas, tren y cultura rarámuri",
+   "relevant": [
+    "Creel"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "mision",
+   "category": "playa",
+   "query": "Misión antigua, malecón y paseo en barco por el mar de Cortés",
+   "relevant": [
+    "Loreto",
+    "TodosSantos"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "ruinas-selva",
+   "category": "arqueologia",
+   "query": "Ruinas mayas escondidas en la selva con monos",
+   "relevant": [
+    "Palenque",
+    "Tulum",
+    "Valladolid",
+    "Izamal"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "relojes",
+   "category": "montana",
+   "query": "Mirador sobre la barranca, fábrica de relojes y sidra",
+   "relevant": [
+    "Zacatlan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "amarillo",
+   "category": "cultura",
+   "query": "Ciudad amarilla con un gran convento franciscano",
+   "relevant": [
+    "Izamal"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "independencia",
+   "category": "cultura",
+   "query": "Historia de la independencia de México y nieves de sabores raros",
+   "relevant": [
+    "Dolores_Hidalgo"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "familia",
+   "category": "relax",
+   "query": "Vacaciones familiares con niños, albercas y toboganes",
+   "relevant": [
+    "Ixtapan_de_la_Sal",
+    "Tequisquiapan",
+    "Valle_de_Bravo"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "virreinato",
+   "category": "cultura",
+   "query": "Museo del virreinato y arte religioso barroco",
+   "relevant": [
+    "Tepotzotlan",
+    "Taxco",
+    "Cholula",
+    "Patzcuaro"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "parafrasis-caribe",
+   "category": "parafrasis",
+   "query": "Un sitio caluroso junto al Caribe para descansar frente al mar",
+   "relevant": [
+    "Tulum",
+    "Isla_Mujeres",
+    "Bacalar"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "parafrasis-frio",
+   "category": "parafrasis",
+   "query": "Escapada a un lugar frío para tomar chocolate junto a la chimenea",
+   "relevant": [
+    "Creel",
+    "Tapalpa",
+    "Zacatlan",
+    "Cuetzalan",
+    "San_Cristobal_de_las_Casas",
+    "Valle_de_Bravo",
+    "Huasca_de_Ocampo",
+    "Real_de_Catorce"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "typo-playa",
+   "category": "ruido",
+   "query": "plallas con snorkell y aga cristalina",
+   "relevant": [
+    "Isla_Mujeres",
+    "Tulum",
+    "Sayulita",
+    "Mazunte",
+    "TodosSantos",
+    "Loreto",
+    "Bacalar"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "sin-mar",
+   "category": "negacion",
+   "query": "Naturaleza y aventura en la sierra, sin playa ni mar",
+   "relevant": [
+    "Creel",
+    "Tapalpa",
+    "Zacatlan",
+    "Huasca_de_Ocampo",
+    "Cuetzalan",
+    "Xilitla",
+    "Valle_de_Bravo"
+   ],
+   "excluded": [
+    "Tulum",
+    "Isla_Mujeres",
+    "Sayulita",
+    "Mazunte",
+    "TodosSantos",
+    "Loreto"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "sin-tulum",
+   "category": "negacion",
+   "query": "Cenotes y comida yucateca, sin Tulum",
+   "relevant": [
+    "Valladolid",
+    "Izamal",
+    "Bacalar"
+   ],
+   "excluded": [
+    "Tulum"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "volcan",
+   "category": "naturaleza",
+   "query": "Clima templado, viveros de flores y vista al volcán",
+   "relevant": [
+    "Atlixco",
+    "Cholula",
+    "Tepoztlan"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "temazcal",
+   "category": "relax",
+   "query": "Retiro místico con temazcal, energía y cerro sagrado",
+   "relevant": [
+    "Tepoztlan",
+    "Tequisquiapan",
+    "Malinalco",
+    "Real_de_Catorce"
+   ],
+   "reviewer_status": "pendiente"
+  },
+  {
+   "id": "dunas",
+   "category": "naturaleza",
+   "query": "Dunas de yeso blanco y pozas de agua azul",
+   "relevant": [
+    "Cuatro_Cienegas"
+   ],
+   "reviewer_status": "pendiente"
+  }
+ ]
+}

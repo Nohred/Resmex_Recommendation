@@ -33,7 +33,7 @@ class FakeOllama:
         return item
 
     def list_models(self, timeout: float = 3.0) -> list[str]:
-        return ["qwen2.5:3b", "nomic-embed-text-v2-moe:latest"]
+        return ["qwen2.5:3b", "embeddinggemma:latest"]
 
 
 class FakeEncoder(Encoder):

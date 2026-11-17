@@ -266,8 +266,9 @@ Capturas: [inicio](reports/figures/web_inicio.png) ·
   real; muchas reseñas son genéricas ("excelente hotel") y no identifican a su pueblo.
 - El dataset no trae fotos, precios ni clima: "clima frío" solo se infiere de lo que cuentan
   las reseñas.
-- El backend de `sentence-transformers` está implementado pero no se ejecutó en este equipo
-  (no se instaló PyTorch en el entorno).
+- El backend de `sentence-transformers` (con prefijos de documento y consulta, y `fp16`) solo
+  se ha probado con el benchmark de `intfloat/multilingual-e5-large`; aún no hay un índice
+  ni métricas con él (ver `reports/experiments.md`).
 
 ## Checklist para el día de la exposición
 

@@ -1,6 +1,11 @@
-"""Carga de configuración (`config.yaml`) en dataclasses tipadas."""
+"""Carga de configuración (`config.yaml`) en dataclasses tipadas.
+
+Un YAML de experimento (`configs/*.yaml`) puede heredar de otro con la clave
+`extends`; las secciones se combinan con merge profundo (ver `load_raw`).
+"""
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -10,13 +15,17 @@ import yaml
 
 ROOT: Path = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG: Path = ROOT / "config.yaml"
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class PathsConfig:
     raw_csv: str = "data/raw/Rest-Mex_2025_train.csv"
-    artifacts_dir: str = "artifacts"
-    reports_dir: str = "reports"
+    artifacts_dir: str = "artifacts"         # arquetipos e índice; por experimento: artifacts/exp/<nombre>
+    reports_dir: str = "reports"             # métricas y figuras; por experimento: reports/exp/<nombre>
+    # Raíz compartida de la caché de embeddings (no depende de k ni de λ). Los
+    # experimentos la heredan y reutilizan los embeddings de la configuración base.
+    embeddings_dir: str = "artifacts"
 
 
 @dataclass
@@ -35,6 +44,9 @@ class EncoderConfig:
     doc_prefix: str = "search_document: "
     query_prefix: str = "search_query: "
     st_model: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    num_ctx: Optional[int] = None            # Ollama: contexto en tokens (None = el del modelo)
+    max_seq_length: Optional[int] = None     # sentence-transformers: tokens máximos (None = el del modelo)
+    fp16: bool = False                       # sentence-transformers: media precisión en GPU (~4× más rápido)
 
 
 @dataclass
@@ -52,6 +64,24 @@ class ArchetypesConfig:
     n_keywords: int = 8
     n_representative: int = 3
     label_with_llm: bool = True
+
+
+@dataclass
+class ReviewQualityConfig:
+    """Filtros y pesos de las reseñas de `train` que forman los arquetipos (todo apagado
+    por defecto; ver `review_quality.py`). No cambian validación, holdout ni gold."""
+
+    min_content_words: Optional[int] = None      # descarta reseñas con menos palabras de contenido
+    drop_generic_frac: Optional[float] = None    # descarta esa fracción más genérica de cada pueblo
+    drop_other_languages: bool = False           # descarta las que no están en español (lingua)
+    drop_near_duplicates: bool = False           # descarta casi duplicados dentro del pueblo
+    near_duplicate_threshold: float = 0.95       # coseno
+    min_reviews_per_town: int = 200              # piso por pueblo tras los descartes
+    weight_informativeness: bool = False         # sample_weight del K-Means = informatividad
+    weight_polarity: bool = False                # … × polaridad / 5
+    min_weight: float = 0.1                      # peso de la reseña más genérica
+    type_weights: Optional[dict[str, float]] = None   # p. ej. {Hotel: 0.5, Restaurant: 0.5, Attractive: 1.0}
+    mask_place_names: bool = False               # borra nombres de pueblos y estados del texto de train
 
 
 @dataclass
@@ -82,6 +112,8 @@ class LLMConfig:
 @dataclass
 class RankingConfig:
     lam: float = 0.015
+    aggregation: str = "max"                 # arquetipos → pueblo: "max" | "lse" (máximo suave, ver aggregation.py)
+    lse_tau: float = 0.01                    # temperatura de "lse"
     top_k: int = 5
     bottom_k: int = 5
 
@@ -93,9 +125,11 @@ class Config:
     encoder: EncoderConfig = field(default_factory=EncoderConfig)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     archetypes: ArchetypesConfig = field(default_factory=ArchetypesConfig)
+    review_quality: ReviewQualityConfig = field(default_factory=ReviewQualityConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     ranking: RankingConfig = field(default_factory=RankingConfig)
     root: Path = ROOT
+    source: Optional[Path] = None            # YAML del que se cargó (None = valores por defecto)
 
     @property
     def raw_csv(self) -> Path:
@@ -109,28 +143,98 @@ class Config:
     def reports_dir(self) -> Path:
         return self.root / self.paths.reports_dir
 
+    @property
+    def embeddings_dir(self) -> Path:
+        return self.root / self.paths.embeddings_dir
 
-def _build(cls: type, raw: dict[str, Any]) -> Any:
-    """Instancia `cls` ignorando claves desconocidas (`lambda` → `lam`)."""
+
+SECTIONS: dict[str, type] = {
+    "paths": PathsConfig,
+    "data": DataConfig,
+    "encoder": EncoderConfig,
+    "ollama": OllamaConfig,
+    "archetypes": ArchetypesConfig,
+    "review_quality": ReviewQualityConfig,
+    "llm": LLMConfig,
+    "ranking": RankingConfig,
+}
+
+
+# Secciones que no son del recomendador: las lee el script que las usa (`load_raw`).
+EXTRA_SECTIONS: set[str] = {"barrido", "barrido_calidad"}   # rejillas de scripts/sweep_archetypes.py y sweep_quality.py
+
+
+def _build(cls: type, raw: dict[str, Any], section: str = "") -> Any:
+    """Instancia `cls` ignorando (con aviso) las claves desconocidas (`lambda` → `lam`)."""
     raw = dict(raw or {})
     if "lambda" in raw:
         raw["lam"] = raw.pop("lambda")
     names = {f.name for f in fields(cls)}
+    unknown = sorted(set(raw) - names)
+    if unknown:  # un error de dedo en un experimento correría la configuración base sin avisar
+        logger.warning("Claves desconocidas en `%s` (se ignoran): %s", section or cls.__name__, unknown)
     return cls(**{k: v for k, v in raw.items() if k in names})
 
 
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Combina dos diccionarios: los sub-diccionarios se mezclan clave por clave;
+    escalares y listas de `override` reemplazan a los de `base`."""
+    out = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
+def _resolve(path: Path | str, relative_to: Optional[Path] = None) -> Path:
+    """Ruta de un YAML: absoluta, relativa a `relative_to`, al directorio actual o a la raíz."""
+    p = Path(path)
+    if p.is_absolute():
+        return p
+    bases = ([relative_to] if relative_to else []) + [Path.cwd(), ROOT]
+    for base in bases:
+        if (base / p).exists():
+            return (base / p).resolve()
+    return (ROOT / p).resolve()
+
+
+def load_raw(path: Path | str, _seen: tuple[Path, ...] = ()) -> dict[str, Any]:
+    """Lee un YAML resolviendo la herencia (`extends: config.yaml`).
+
+    La ruta de `extends` se busca junto al propio archivo y después en la raíz
+    del repositorio. El hijo solo declara lo que cambia; el resto se hereda.
+    """
+    cfg_path = _resolve(path)
+    if cfg_path in _seen:
+        raise ValueError(f"Herencia circular de configuración en {cfg_path}")
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"No existe el archivo de configuración: {cfg_path}")
+    raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{cfg_path} debe contener un mapeo YAML")
+    parent = raw.pop("extends", None)
+    if parent is None:
+        return raw
+    base = load_raw(_resolve(parent, cfg_path.parent), _seen + (cfg_path,))
+    return deep_merge(base, raw)
+
+
 def load_config(path: Optional[Path | str] = None) -> Config:
-    """Lee el YAML de configuración. `RESTMEX_CONFIG` permite cambiar la ruta."""
-    cfg_path = Path(path or os.environ.get("RESTMEX_CONFIG", DEFAULT_CONFIG))
+    """Lee el YAML de configuración. `RESTMEX_CONFIG` permite cambiar la ruta.
+
+    Sin `config.yaml` se usan los valores por defecto; una ruta pedida de forma
+    explícita (argumento o variable de entorno) que no exista es un error.
+    """
+    explicit = path or os.environ.get("RESTMEX_CONFIG")
     raw: dict[str, Any] = {}
-    if cfg_path.exists():
-        raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-    return Config(
-        paths=_build(PathsConfig, raw.get("paths", {})),
-        data=_build(DataConfig, raw.get("data", {})),
-        encoder=_build(EncoderConfig, raw.get("encoder", {})),
-        ollama=_build(OllamaConfig, raw.get("ollama", {})),
-        archetypes=_build(ArchetypesConfig, raw.get("archetypes", {})),
-        llm=_build(LLMConfig, raw.get("llm", {})),
-        ranking=_build(RankingConfig, raw.get("ranking", {})),
-    )
+    source: Optional[Path] = None
+    if explicit or DEFAULT_CONFIG.exists():
+        source = _resolve(explicit or DEFAULT_CONFIG)
+        raw = load_raw(source)
+    unknown = sorted(set(raw) - set(SECTIONS) - EXTRA_SECTIONS)
+    if unknown:
+        logger.warning("Secciones desconocidas en la configuración (se ignoran): %s", unknown)
+    sections = {name: _build(cls, raw.get(name, {}), name) for name, cls in SECTIONS.items()}
+    return Config(**sections, source=source)

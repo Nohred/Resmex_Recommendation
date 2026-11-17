@@ -1,0 +1,129 @@
+{
+ "regla": "Finalistas = las 3 mejores por MRR macro en calibración (reseña como documento) con (k, familia de agregación) distintos. Se elige la líder salvo que otra finalista la supere en MRR macro con HyDE (bootstrap pareado, IC95 sin el 0).",
+ "finalistas": [
+  "k30|lse_t0.01",
+  "k30|top2",
+  "log_a3|lse_t0.01"
+ ],
+ "referencia": "k10|max",
+ "hyde_n": 120,
+ "hyde_solicitadas": 120,
+ "llm": {
+  "ollama:qwen2.5:3b": 79,
+  "groq:openai/gpt-oss-120b": 41
+ },
+ "calibracion": {
+  "k30|lse_t0.01": {
+   "lambda": 0.03,
+   "doc": {
+    "mrr_macro": 0.5556,
+    "mrr": 0.5533,
+    "hit_at_1": 0.4433,
+    "hit_at_5": 0.6633,
+    "bottom_error_rate": 0.01
+   },
+   "hyde": {
+    "mrr_macro": 0.4205,
+    "mrr": 0.4205,
+    "hit_at_1": 0.3,
+    "hit_at_5": 0.5417,
+    "bottom_error_rate": 0.1333
+   }
+  },
+  "k30|top2": {
+   "lambda": 0.03,
+   "doc": {
+    "mrr_macro": 0.5482,
+    "mrr": 0.5453,
+    "hit_at_1": 0.4233,
+    "hit_at_5": 0.6667,
+    "bottom_error_rate": 0.0067
+   },
+   "hyde": {
+    "mrr_macro": 0.3947,
+    "mrr": 0.3947,
+    "hit_at_1": 0.25,
+    "hit_at_5": 0.5417,
+    "bottom_error_rate": 0.1
+   }
+  },
+  "log_a3|lse_t0.01": {
+   "lambda": 0.03,
+   "doc": {
+    "mrr_macro": 0.5354,
+    "mrr": 0.5349,
+    "hit_at_1": 0.4133,
+    "hit_at_5": 0.6733,
+    "bottom_error_rate": 0.01
+   },
+   "hyde": {
+    "mrr_macro": 0.427,
+    "mrr": 0.427,
+    "hit_at_1": 0.2917,
+    "hit_at_5": 0.575,
+    "bottom_error_rate": 0.1333
+   }
+  },
+  "k10|max": {
+   "lambda": 0.015,
+   "doc": {
+    "mrr_macro": 0.4811,
+    "mrr": 0.48,
+    "hit_at_1": 0.3467,
+    "hit_at_5": 0.6133,
+    "bottom_error_rate": 0.0133
+   },
+   "hyde": {
+    "mrr_macro": 0.3666,
+    "mrr": 0.3666,
+    "hit_at_1": 0.2417,
+    "hit_at_5": 0.4667,
+    "bottom_error_rate": 0.125
+   }
+  }
+ },
+ "hyde_vs_lider": {
+  "k30|top2": {
+   "candidate": 0.3947,
+   "baseline": 0.4205,
+   "diff": -0.0258,
+   "ci95": [
+    -0.0737,
+    0.0196
+   ],
+   "significant": false,
+   "n": 120,
+   "n_boot": 1000,
+   "seed": 2025
+  },
+  "log_a3|lse_t0.01": {
+   "candidate": 0.427,
+   "baseline": 0.4205,
+   "diff": 0.0066,
+   "ci95": [
+    -0.0403,
+    0.0573
+   ],
+   "significant": false,
+   "n": 120,
+   "n_boot": 1000,
+   "seed": 2025
+  },
+  "k10|max": {
+   "candidate": 0.3666,
+   "baseline": 0.4205,
+   "diff": -0.0538,
+   "ci95": [
+    -0.1053,
+    -0.0029
+   ],
+   "significant": true,
+   "n": 120,
+   "n_boot": 1000,
+   "seed": 2025
+  }
+ },
+ "elegida": "k30|lse_t0.01",
+ "motivo": "líder de calibración (reseña como documento); ninguna finalista la supera con HyDE fuera del ruido",
+ "commit": "aeb9d2c"
+}

@@ -1,0 +1,924 @@
+{
+  "scope": "muestra",
+  "baseline": "2026-11-16_enc_nomic",
+  "bootstrap": {
+    "n_boot": 1000,
+    "seed": 2025,
+    "ci": "percentiles 2.5 y 97.5",
+    "paired_by": "row_id"
+  },
+  "runs": {
+    "2026-11-16_enc_nomic": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4679,
+          "hit_at_5": 0.5983,
+          "hit_at_1": 0.3417,
+          "bottom_error_rate": 0.0117,
+          "spearman_hit5_vs_reviews": -0.2105
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4645,
+          "hit_at_5": 0.5983,
+          "hit_at_1": 0.335,
+          "bottom_error_rate": 0.0133,
+          "spearman_hit5_vs_reviews": -0.0883
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.341,
+          "hit_at_5": 0.445,
+          "hit_at_1": 0.225,
+          "bottom_error_rate": 0.13,
+          "spearman_hit5_vs_reviews": 0.1529
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.6641,
+        "mrr": 0.7818,
+        "hit_at_5": 0.975,
+        "bottom_error_rate": 0.2,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0244,
+          "p95": 0.0258,
+          "max": 0.0261
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": -0.0534,
+      "spearman_balanced_val": -0.0119,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:nomic-embed-text-v2-moe",
+        "k": 10,
+        "lambda": 0.02,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 1500,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "f9152a8",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 19.8,
+        "embeddings": 18.8
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_bge_m3": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4596,
+          "hit_at_5": 0.58,
+          "hit_at_1": 0.3317,
+          "bottom_error_rate": 0.0067,
+          "spearman_hit5_vs_reviews": 0.2629
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4596,
+          "hit_at_5": 0.58,
+          "hit_at_1": 0.3317,
+          "bottom_error_rate": 0.0067,
+          "spearman_hit5_vs_reviews": 0.2629
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.326,
+          "hit_at_5": 0.435,
+          "hit_at_1": 0.215,
+          "bottom_error_rate": 0.13,
+          "spearman_hit5_vs_reviews": 0.1347
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.715,
+        "mrr": 0.8423,
+        "hit_at_5": 0.975,
+        "bottom_error_rate": 0.175,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.3663,
+          "p95": 0.3759,
+          "max": 0.3779
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": 0.0654,
+      "spearman_balanced_val": 0.0234,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:bge-m3",
+        "k": 10,
+        "lambda": 0.015,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 1500,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "aeb9d2c",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 45.4,
+        "embeddings": 44.0
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_bge_m3_largo": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4651,
+          "hit_at_5": 0.6033,
+          "hit_at_1": 0.33,
+          "bottom_error_rate": 0.0083,
+          "spearman_hit5_vs_reviews": 0.2052
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4651,
+          "hit_at_5": 0.6033,
+          "hit_at_1": 0.33,
+          "bottom_error_rate": 0.0083,
+          "spearman_hit5_vs_reviews": 0.2052
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.3241,
+          "hit_at_5": 0.41,
+          "hit_at_1": 0.215,
+          "bottom_error_rate": 0.145,
+          "spearman_hit5_vs_reviews": 0.1806
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.6985,
+        "mrr": 0.8278,
+        "hit_at_5": 0.975,
+        "bottom_error_rate": 0.175,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0352,
+          "p95": 0.0365,
+          "max": 0.0392
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": 0.2681,
+      "spearman_balanced_val": 0.0045,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:bge-m3@ctx4096",
+        "k": 10,
+        "lambda": 0.01,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 9000,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "aeb9d2c",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 16.8,
+        "embeddings": 15.7
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_qwen3": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4528,
+          "hit_at_5": 0.59,
+          "hit_at_1": 0.3183,
+          "bottom_error_rate": 0.01,
+          "spearman_hit5_vs_reviews": -0.1895
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4645,
+          "hit_at_5": 0.6233,
+          "hit_at_1": 0.3283,
+          "bottom_error_rate": 0.0117,
+          "spearman_hit5_vs_reviews": -0.1683
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.3302,
+          "hit_at_5": 0.435,
+          "hit_at_1": 0.215,
+          "bottom_error_rate": 0.105,
+          "spearman_hit5_vs_reviews": 0.1803
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.6858,
+        "mrr": 0.7831,
+        "hit_at_5": 0.95,
+        "bottom_error_rate": 0.2,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0522,
+          "p95": 0.0574,
+          "max": 0.0588
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": -0.0382,
+      "spearman_balanced_val": -0.002,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:qwen3-embedding:0.6b",
+        "k": 10,
+        "lambda": 0.04,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 1500,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "aeb9d2c",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 34.2,
+        "embeddings": 33.0
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_qwen3_largo": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.459,
+          "hit_at_5": 0.6,
+          "hit_at_1": 0.3283,
+          "bottom_error_rate": 0.0117,
+          "spearman_hit5_vs_reviews": -0.2021
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4655,
+          "hit_at_5": 0.625,
+          "hit_at_1": 0.3267,
+          "bottom_error_rate": 0.0133,
+          "spearman_hit5_vs_reviews": -0.1469
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.3244,
+          "hit_at_5": 0.425,
+          "hit_at_1": 0.205,
+          "bottom_error_rate": 0.11,
+          "spearman_hit5_vs_reviews": 0.1149
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.6557,
+        "mrr": 0.7708,
+        "hit_at_5": 0.925,
+        "bottom_error_rate": 0.225,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0527,
+          "p95": 0.0562,
+          "max": 0.0584
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": 0.0372,
+      "spearman_balanced_val": -0.0453,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:qwen3-embedding:0.6b@ctx4096",
+        "k": 10,
+        "lambda": 0.04,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 9000,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "b83a790",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 47.9,
+        "embeddings": 46.6
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_gemma": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4846,
+          "hit_at_5": 0.6167,
+          "hit_at_1": 0.3583,
+          "bottom_error_rate": 0.0117,
+          "spearman_hit5_vs_reviews": 0.0961
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.496,
+          "hit_at_5": 0.635,
+          "hit_at_1": 0.375,
+          "bottom_error_rate": 0.01,
+          "spearman_hit5_vs_reviews": 0.1911
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.3356,
+          "hit_at_5": 0.44,
+          "hit_at_1": 0.215,
+          "bottom_error_rate": 0.09,
+          "spearman_hit5_vs_reviews": 0.0512
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.6707,
+        "mrr": 0.8307,
+        "hit_at_5": 0.85,
+        "bottom_error_rate": 0.075,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0403,
+          "p95": 0.0415,
+          "max": 0.0418
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": -0.0032,
+      "spearman_balanced_val": 0.0282,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:embeddinggemma",
+        "k": 10,
+        "lambda": 0.02,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 1500,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "aeb9d2c",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 58.8,
+        "embeddings": 57.8
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_gemma_largo": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4897,
+          "hit_at_5": 0.6267,
+          "hit_at_1": 0.3633,
+          "bottom_error_rate": 0.0133,
+          "spearman_hit5_vs_reviews": 0.0647
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4923,
+          "hit_at_5": 0.6217,
+          "hit_at_1": 0.365,
+          "bottom_error_rate": 0.005,
+          "spearman_hit5_vs_reviews": 0.1665
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.3414,
+          "hit_at_5": 0.455,
+          "hit_at_1": 0.22,
+          "bottom_error_rate": 0.105,
+          "spearman_hit5_vs_reviews": 0.1144
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.69,
+        "mrr": 0.8307,
+        "hit_at_5": 0.9,
+        "bottom_error_rate": 0.15,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0589,
+          "p95": 0.0842,
+          "max": 0.0856
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": 0.0413,
+      "spearman_balanced_val": 0.0156,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "ollama:embeddinggemma",
+        "k": 10,
+        "lambda": 0.01,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 6000,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "390e092",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 21.9,
+        "embeddings": 18.8
+      },
+      "n_train": 48566
+    },
+    "2026-11-16_enc_e5_large": {
+      "holdout": {
+        "reseña como documento (sin LLM)": {
+          "n": 600,
+          "mrr_macro": 0.4521,
+          "hit_at_5": 0.5933,
+          "hit_at_1": 0.3233,
+          "bottom_error_rate": 0.0133,
+          "spearman_hit5_vs_reviews": -0.1803
+        },
+        "consulta cruda (search_query)": {
+          "n": 600,
+          "mrr_macro": 0.4389,
+          "hit_at_5": 0.56,
+          "hit_at_1": 0.3183,
+          "bottom_error_rate": 0.0117,
+          "spearman_hit5_vs_reviews": -0.2028
+        },
+        "HyDE + Anti-HyDE (pipeline web)": {
+          "n": 200,
+          "mrr_macro": 0.2995,
+          "hit_at_5": 0.435,
+          "hit_at_1": 0.17,
+          "bottom_error_rate": 0.13,
+          "spearman_hit5_vs_reviews": -0.3779
+        }
+      },
+      "gold": {
+        "ndcg_at_5": 0.7079,
+        "mrr": 0.8349,
+        "hit_at_5": 0.95,
+        "bottom_error_rate": 0.175,
+        "latency_warm_s": {
+          "n": 40,
+          "p50": 0.0206,
+          "p95": 0.0212,
+          "max": 0.0234
+        },
+        "fallback_queries": 0
+      },
+      "spearman_exposure_vs_reviews": -0.0947,
+      "spearman_balanced_val": -0.0561,
+      "determinism": 1.0,
+      "meta": {
+        "encoder": "st:intfloat/multilingual-e5-large@len512@fp16",
+        "k": 10,
+        "lambda": 0.01,
+        "lambda_source": "lambda_chosen de metrics.json (recalibrado en validación)",
+        "max_chars": 1500,
+        "max_reviews_per_town": 1500,
+        "holdout_set": "tope_1500",
+        "commit": "aeb9d2c",
+        "llm_used": "groq:openai/gpt-oss-120b × 401, ollama:qwen2.5:3b × 24"
+      },
+      "hyde_providers": {
+        "groq:openai/gpt-oss-120b": 200
+      },
+      "minutes": {
+        "index": 16.7,
+        "embeddings": 15.4
+      },
+      "n_train": 48566
+    }
+  },
+  "vs_baseline": {
+    "2026-11-16_enc_bge_m3": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4596,
+          "baseline": 0.4679,
+          "diff": -0.0083,
+          "ci95": [
+            -0.0348,
+            0.018
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.58,
+          "baseline": 0.5983,
+          "diff": -0.0183,
+          "ci95": [
+            -0.0584,
+            0.0217
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.326,
+          "baseline": 0.341,
+          "diff": -0.015,
+          "ci95": [
+            -0.0511,
+            0.0221
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.435,
+          "baseline": 0.445,
+          "diff": -0.01,
+          "ci95": [
+            -0.065,
+            0.045
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_bge_m3_largo": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4651,
+          "baseline": 0.4679,
+          "diff": -0.0028,
+          "ci95": [
+            -0.031,
+            0.0243
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.6033,
+          "baseline": 0.5983,
+          "diff": 0.005,
+          "ci95": [
+            -0.0383,
+            0.045
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.3241,
+          "baseline": 0.341,
+          "diff": -0.0169,
+          "ci95": [
+            -0.0546,
+            0.0223
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.41,
+          "baseline": 0.445,
+          "diff": -0.035,
+          "ci95": [
+            -0.095,
+            0.025
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_qwen3": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4528,
+          "baseline": 0.4679,
+          "diff": -0.0151,
+          "ci95": [
+            -0.0424,
+            0.0111
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.59,
+          "baseline": 0.5983,
+          "diff": -0.0083,
+          "ci95": [
+            -0.0483,
+            0.0333
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.3302,
+          "baseline": 0.341,
+          "diff": -0.0108,
+          "ci95": [
+            -0.0523,
+            0.0317
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.435,
+          "baseline": 0.445,
+          "diff": -0.01,
+          "ci95": [
+            -0.07,
+            0.05
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_qwen3_largo": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.459,
+          "baseline": 0.4679,
+          "diff": -0.0089,
+          "ci95": [
+            -0.0383,
+            0.0179
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.6,
+          "baseline": 0.5983,
+          "diff": 0.0017,
+          "ci95": [
+            -0.035,
+            0.0383
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.3244,
+          "baseline": 0.341,
+          "diff": -0.0166,
+          "ci95": [
+            -0.0567,
+            0.0248
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.425,
+          "baseline": 0.445,
+          "diff": -0.02,
+          "ci95": [
+            -0.08,
+            0.0401
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_gemma": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4846,
+          "baseline": 0.4679,
+          "diff": 0.0167,
+          "ci95": [
+            -0.0103,
+            0.0433
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.6167,
+          "baseline": 0.5983,
+          "diff": 0.0183,
+          "ci95": [
+            -0.025,
+            0.055
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.3356,
+          "baseline": 0.341,
+          "diff": -0.0054,
+          "ci95": [
+            -0.049,
+            0.0393
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.44,
+          "baseline": 0.445,
+          "diff": -0.005,
+          "ci95": [
+            -0.07,
+            0.055
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_gemma_largo": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4897,
+          "baseline": 0.4679,
+          "diff": 0.0218,
+          "ci95": [
+            -0.0057,
+            0.0486
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.6267,
+          "baseline": 0.5983,
+          "diff": 0.0283,
+          "ci95": [
+            -0.0117,
+            0.065
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.3414,
+          "baseline": 0.341,
+          "diff": 0.0004,
+          "ci95": [
+            -0.0428,
+            0.0431
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.455,
+          "baseline": 0.445,
+          "diff": 0.01,
+          "ci95": [
+            -0.055,
+            0.07
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    },
+    "2026-11-16_enc_e5_large": {
+      "reseña como documento (sin LLM)": {
+        "mrr_macro": {
+          "candidate": 0.4521,
+          "baseline": 0.4679,
+          "diff": -0.0158,
+          "ci95": [
+            -0.0435,
+            0.0109
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.5933,
+          "baseline": 0.5983,
+          "diff": -0.005,
+          "ci95": [
+            -0.0483,
+            0.035
+          ],
+          "significant": false,
+          "n": 600,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      },
+      "HyDE + Anti-HyDE (pipeline web)": {
+        "mrr_macro": {
+          "candidate": 0.2995,
+          "baseline": 0.341,
+          "diff": -0.0415,
+          "ci95": [
+            -0.0851,
+            0.0006
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        },
+        "hit_at_5": {
+          "candidate": 0.435,
+          "baseline": 0.445,
+          "diff": -0.01,
+          "ci95": [
+            -0.08,
+            0.0651
+          ],
+          "significant": false,
+          "n": 200,
+          "n_boot": 1000,
+          "seed": 2025
+        }
+      }
+    }
+  }
+}

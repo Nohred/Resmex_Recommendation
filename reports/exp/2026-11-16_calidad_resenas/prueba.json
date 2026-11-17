@@ -1,0 +1,209 @@
+{
+ "combinacion": {
+  "mask_place_names": true,
+  "min_content_words": 8
+ },
+ "componentes": [
+  "muestra_1500_sin_nombres",
+  "min_contenido_8"
+ ],
+ "referencia": "muestra_1500",
+ "semillas": [
+  42,
+  7,
+  123,
+  2025
+ ],
+ "commit": "b2c63d9+cambios",
+ "llm_hyde": {
+  "ollama:qwen2.5:3b": 96,
+  "groq:openai/gpt-oss-120b": 24
+ },
+ "lambda": {
+  "referencia": [
+   0.02,
+   0.015,
+   0.015,
+   0.015
+  ],
+  "combinacion": [
+   0.015,
+   0.015,
+   0.015,
+   0.015
+  ]
+ },
+ "bootstrap": {
+  "n_boot": 1000,
+  "seed": 2025,
+  "unidad": "consulta; métrica promediada sobre semillas"
+ },
+ "holdout prueba · reseña enmascarada como documento": {
+  "n": 300,
+  "combinacion": {
+   "mrr_macro": {
+    "value": 0.5815,
+    "ci95": [
+     0.5364,
+     0.6225
+    ]
+   },
+   "hit_at_5": {
+    "value": 0.7142,
+    "ci95": [
+     0.6675,
+     0.7584
+    ]
+   }
+  },
+  "referencia": {
+   "mrr_macro": {
+    "value": 0.5742,
+    "ci95": [
+     0.5283,
+     0.6169
+    ]
+   },
+   "hit_at_5": {
+    "value": 0.695,
+    "ci95": [
+     0.6441,
+     0.7375
+    ]
+   }
+  },
+  "diferencia": {
+   "mrr_macro": {
+    "candidate": 0.5815,
+    "baseline": 0.5742,
+    "diff": 0.0073,
+    "ci95": [
+     -0.0109,
+     0.0258
+    ],
+    "significant": false,
+    "n": 300,
+    "n_boot": 1000,
+    "seed": 2025
+   },
+   "hit_at_5": {
+    "candidate": 0.7142,
+    "baseline": 0.695,
+    "diff": 0.0192,
+    "ci95": [
+     -0.0067,
+     0.0442
+    ],
+    "significant": false,
+    "n": 300,
+    "n_boot": 1000,
+    "seed": 2025
+   }
+  },
+  "delta_mrr_macro_por_semilla": {
+   "42": -0.0258,
+   "7": 0.0123,
+   "123": 0.0195,
+   "2025": 0.0231
+  }
+ },
+ "holdout prueba · HyDE + Anti-HyDE (pipeline web)": {
+  "n": 120,
+  "combinacion": {
+   "mrr_macro": {
+    "value": 0.4836,
+    "ci95": [
+     0.4162,
+     0.5536
+    ]
+   },
+   "hit_at_5": {
+    "value": 0.6292,
+    "ci95": [
+     0.55,
+     0.7021
+    ]
+   }
+  },
+  "referencia": {
+   "mrr_macro": {
+    "value": 0.4614,
+    "ci95": [
+     0.3981,
+     0.5311
+    ]
+   },
+   "hit_at_5": {
+    "value": 0.6167,
+    "ci95": [
+     0.5417,
+     0.6917
+    ]
+   }
+  },
+  "diferencia": {
+   "mrr_macro": {
+    "candidate": 0.4836,
+    "baseline": 0.4614,
+    "diff": 0.0222,
+    "ci95": [
+     -0.0111,
+     0.0551
+    ],
+    "significant": false,
+    "n": 120,
+    "n_boot": 1000,
+    "seed": 2025
+   },
+   "hit_at_5": {
+    "candidate": 0.6292,
+    "baseline": 0.6167,
+    "diff": 0.0125,
+    "ci95": [
+     -0.0375,
+     0.0604
+    ],
+    "significant": false,
+    "n": 120,
+    "n_boot": 1000,
+    "seed": 2025
+   }
+  },
+  "delta_mrr_macro_por_semilla": {
+   "42": 0.0182,
+   "7": 0.0364,
+   "123": 0.0382,
+   "2025": -0.0039
+  }
+ },
+ "gold test · nDCG@5": {
+  "n": 15,
+  "combinacion": {
+   "value": 0.6778,
+   "ci95": [
+    0.5566,
+    0.7975
+   ]
+  },
+  "referencia": {
+   "value": 0.6981,
+   "ci95": [
+    0.5937,
+    0.8085
+   ]
+  },
+  "diferencia": {
+   "candidate": 0.6778,
+   "baseline": 0.6981,
+   "diff": -0.0202,
+   "ci95": [
+    -0.0592,
+    0.0176
+   ],
+   "significant": false,
+   "n": 15,
+   "n_boot": 1000,
+   "seed": 2025
+  }
+ }
+}

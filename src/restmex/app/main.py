@@ -17,6 +17,7 @@ from ..examples import EXAMPLES
 from ..llm import LLMError
 from ..recommender import Recommender
 from ..retrieval import ArchetypeIndex
+from ..validation import QueryError
 
 logger = logging.getLogger("restmex.app")
 APP_DIR = Path(__file__).resolve().parent
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.recommender = None
     app.state.index_error = None
     try:
-        index = ArchetypeIndex.load(artifacts)
+        index = ArchetypeIndex.load(artifacts, cfg.ranking)
         app.state.recommender = Recommender(cfg, index)
         logger.info("Índice cargado: %d arquetipos de %d pueblos", len(index.meta), index.n_towns)
     except (OSError, ValueError, KeyError) as exc:
@@ -103,6 +104,8 @@ def recommend(req: RecommendRequest) -> dict[str, Any]:
         raise HTTPException(422, detail="Escribe una descripción un poco más larga.")
     try:
         return rec.recommend(query, req.lam).to_dict()
+    except QueryError as exc:  # vacía, una sola palabra o solo exclusiones
+        raise HTTPException(422, detail=str(exc)) from exc
     except LLMError as exc:  # el encoder (Ollama) no respondió
         logger.error("Fallo de embeddings: %s", exc)
         raise HTTPException(

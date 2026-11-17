@@ -1,0 +1,209 @@
+{
+ "elegida": "k30|lse_t0.01",
+ "referencia": "k10|max",
+ "commit": "390e092",
+ "lambda": {
+  "k30|lse_t0.01": 0.03,
+  "k10|max": 0.015
+ },
+ "bootstrap": {
+  "n_boot": 1000,
+  "seed": 2025,
+  "ic": "percentiles 2.5 y 97.5",
+  "pareado_por": "row_id"
+ },
+ "variantes": {
+  "reseña como documento (sin LLM)": {
+   "n": 300,
+   "sistemas": {
+    "k30|lse_t0.01": {
+     "mrr_macro": {
+      "value": 0.5853,
+      "ci95": [
+       0.5402,
+       0.6291
+      ]
+     },
+     "hit_at_1": {
+      "value": 0.46,
+      "ci95": [
+       0.4,
+       0.5134
+      ]
+     },
+     "hit_at_5": {
+      "value": 0.7233,
+      "ci95": [
+       0.67,
+       0.7733
+      ]
+     },
+     "bottom_error_rate": 0.0033
+    },
+    "k10|max": {
+     "mrr_macro": {
+      "value": 0.5373,
+      "ci95": [
+       0.4889,
+       0.5837
+      ]
+     },
+     "hit_at_1": {
+      "value": 0.4167,
+      "ci95": [
+       0.36,
+       0.4733
+      ]
+     },
+     "hit_at_5": {
+      "value": 0.6733,
+      "ci95": [
+       0.62,
+       0.73
+      ]
+     },
+     "bottom_error_rate": 0.0033
+    }
+   },
+   "elegida_menos_referencia": {
+    "mrr_macro": {
+     "candidate": 0.5853,
+     "baseline": 0.5373,
+     "diff": 0.048,
+     "ci95": [
+      0.0117,
+      0.0839
+     ],
+     "significant": true,
+     "n": 300,
+     "n_boot": 1000,
+     "seed": 2025
+    },
+    "hit_at_1": {
+     "candidate": 0.46,
+     "baseline": 0.4167,
+     "diff": 0.0433,
+     "ci95": [
+      0.0,
+      0.09
+     ],
+     "significant": false,
+     "n": 300,
+     "n_boot": 1000,
+     "seed": 2025
+    },
+    "hit_at_5": {
+     "candidate": 0.7233,
+     "baseline": 0.6733,
+     "diff": 0.05,
+     "ci95": [
+      0.0033,
+      0.0933
+     ],
+     "significant": true,
+     "n": 300,
+     "n_boot": 1000,
+     "seed": 2025
+    }
+   }
+  },
+  "HyDE + Anti-HyDE (pipeline web)": {
+   "n": 120,
+   "sistemas": {
+    "k30|lse_t0.01": {
+     "mrr_macro": {
+      "value": 0.4948,
+      "ci95": [
+       0.4193,
+       0.5702
+      ]
+     },
+     "hit_at_1": {
+      "value": 0.3667,
+      "ci95": [
+       0.275,
+       0.4583
+      ]
+     },
+     "hit_at_5": {
+      "value": 0.6333,
+      "ci95": [
+       0.55,
+       0.7167
+      ]
+     },
+     "bottom_error_rate": 0.05
+    },
+    "k10|max": {
+     "mrr_macro": {
+      "value": 0.427,
+      "ci95": [
+       0.3541,
+       0.4996
+      ]
+     },
+     "hit_at_1": {
+      "value": 0.2917,
+      "ci95": [
+       0.2083,
+       0.3669
+      ]
+     },
+     "hit_at_5": {
+      "value": 0.5833,
+      "ci95": [
+       0.5,
+       0.6669
+      ]
+     },
+     "bottom_error_rate": 0.0667
+    }
+   },
+   "elegida_menos_referencia": {
+    "mrr_macro": {
+     "candidate": 0.4948,
+     "baseline": 0.427,
+     "diff": 0.0678,
+     "ci95": [
+      0.026,
+      0.1069
+     ],
+     "significant": true,
+     "n": 120,
+     "n_boot": 1000,
+     "seed": 2025
+    },
+    "hit_at_1": {
+     "candidate": 0.3667,
+     "baseline": 0.2917,
+     "diff": 0.075,
+     "ci95": [
+      0.0083,
+      0.15
+     ],
+     "significant": true,
+     "n": 120,
+     "n_boot": 1000,
+     "seed": 2025
+    },
+    "hit_at_5": {
+     "candidate": 0.6333,
+     "baseline": 0.5833,
+     "diff": 0.05,
+     "ci95": [
+      -0.0167,
+      0.125
+     ],
+     "significant": false,
+     "n": 120,
+     "n_boot": 1000,
+     "seed": 2025
+    }
+   }
+  }
+ },
+ "llm": {
+  "ollama:qwen2.5:3b": 96,
+  "groq:openai/gpt-oss-120b": 24
+ }
+}

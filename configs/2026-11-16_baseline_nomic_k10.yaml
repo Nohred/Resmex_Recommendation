@@ -1,0 +1,6 @@
+# Línea base con el protocolo de evaluación del equipo (make report): misma configuración
+# que config.yaml (nomic-embed-text-v2-moe, k = 10, λ = 0.015). Hereda el índice base y
+# solo escribe sus resultados en su propio directorio.
+extends: config.yaml
+paths:
+  reports_dir: reports/exp/2026-11-16_baseline_nomic_k10

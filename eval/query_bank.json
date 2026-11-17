@@ -1,0 +1,426 @@
+{
+ "description": "Banco de consultas para evaluación humana ciega. 'split' se asigna por hash estable del id: dev (50 %), calibration (25 %), test (25 %). test no se usa para ajustar el modelo. Los evaluadores pueden proponer consultas nuevas añadiéndolas aquí antes de abrir una ronda.",
+ "version": 1,
+ "queries": [
+  {
+   "id": "playa-snorkel",
+   "query": "Quiero playas tranquilas, agua turquesa y snorkel",
+   "category": "playa",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "piramides",
+   "query": "Busco pirámides, arqueología e historia prehispánica",
+   "category": "arqueologia",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "vino",
+   "query": "Me interesan viñedos, vino y recorridos por bodegas",
+   "category": "vino",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "bosque",
+   "query": "Quiero bosque, montaña, cabañas y senderismo",
+   "category": "montana",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "cenotes",
+   "query": "Busco cenotes para nadar y naturaleza",
+   "category": "agua-dulce",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "gastronomia",
+   "query": "Quiero gastronomía mexicana, mercados y restaurantes tradicionales",
+   "category": "gastronomia",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "colonial",
+   "query": "Deseo arquitectura colonial, iglesias y calles históricas",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "cascadas",
+   "query": "Quiero cascadas, vegetación y aventura al aire libre",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "termales",
+   "query": "Busco un viaje relajante con spa y aguas termales",
+   "category": "relax",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "desierto",
+   "query": "Quiero desierto y paisajes naturales, sin playa",
+   "category": "negacion",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "tequila",
+   "query": "Quiero visitar destilerías y conocer el proceso del tequila",
+   "category": "bebidas",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "cafe",
+   "query": "Pueblo cafetalero con niebla, café de altura y clima fresco",
+   "category": "bebidas",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "plata",
+   "query": "Comprar joyería de plata y recorrer calles empedradas en cerro",
+   "category": "artesania",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "laguna",
+   "query": "Laguna de siete colores para navegar en kayak",
+   "category": "agua-dulce",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "surf",
+   "query": "Aprender surf, ambiente relajado y tacos frente al mar",
+   "category": "playa",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "tortugas",
+   "query": "Ver tortugas, atardeceres en la punta y ambiente bohemio",
+   "category": "playa",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "canon",
+   "query": "Paseo en lancha por un cañón con cocodrilos",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "lago",
+   "query": "Caminar junto al lago, malecón tranquilo y comida con vista al agua",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "surrealista",
+   "query": "Jardín surrealista con esculturas en la selva y pozas",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "artesania",
+   "query": "Artesanías de barro, mariachi y tiendas de arte popular",
+   "category": "artesania",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "teleferico",
+   "query": "Subir en teleférico y visitar museos en la ciudad",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "monolito",
+   "query": "Escalar un monolito enorme y comer gorditas",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "prismas",
+   "query": "Formaciones de prismas basálticos, haciendas y tirolesa",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "fantasma",
+   "query": "Pueblo minero fantasma, túnel y paseo a caballo por el desierto",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "barrancas",
+   "query": "Barrancas profundas, tren y cultura rarámuri",
+   "category": "montana",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "mision",
+   "query": "Misión antigua, malecón y paseo en barco por el mar de Cortés",
+   "category": "playa",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "ruinas-selva",
+   "query": "Ruinas mayas escondidas en la selva con monos",
+   "category": "arqueologia",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "relojes",
+   "query": "Mirador sobre la barranca, fábrica de relojes y sidra",
+   "category": "montana",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "amarillo",
+   "query": "Ciudad amarilla con un gran convento franciscano",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "independencia",
+   "query": "Historia de la independencia de México y nieves de sabores raros",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "familia",
+   "query": "Vacaciones familiares con niños, albercas y toboganes",
+   "category": "relax",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "virreinato",
+   "query": "Museo del virreinato y arte religioso barroco",
+   "category": "cultura",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "parafrasis-caribe",
+   "query": "Un sitio caluroso junto al Caribe para descansar frente al mar",
+   "category": "parafrasis",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "parafrasis-frio",
+   "query": "Escapada a un lugar frío para tomar chocolate junto a la chimenea",
+   "category": "parafrasis",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "typo-playa",
+   "query": "plallas con snorkell y aga cristalina",
+   "category": "ruido",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "sin-mar",
+   "query": "Naturaleza y aventura en la sierra, sin playa ni mar",
+   "category": "negacion",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "sin-tulum",
+   "query": "Cenotes y comida yucateca, sin Tulum",
+   "category": "negacion",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "volcan",
+   "query": "Clima templado, viveros de flores y vista al volcán",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "calibration"
+  },
+  {
+   "id": "temazcal",
+   "query": "Retiro místico con temazcal, energía y cerro sagrado",
+   "category": "relax",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "test"
+  },
+  {
+   "id": "dunas",
+   "query": "Dunas de yeso blanco y pozas de agua azul",
+   "category": "naturaleza",
+   "origin": "seed heurístico (autor vio resultados previos)",
+   "split": "dev"
+  },
+  {
+   "id": "colonial-cultura-sin-playa",
+   "query": "Quiero arquitectura colonial, gastronomía tradicional y actividades culturales, pero sin playa",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "test"
+  },
+  {
+   "id": "contradiccion-playa",
+   "query": "Quiero playa pero sin playa ni mar",
+   "category": "contradicción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "montana-y-mar",
+   "query": "Montaña y bosque, pero cerca del mar",
+   "category": "contradicción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "tranquilo-sin-fiesta",
+   "query": "Pueblo tranquilo, sin turistas ni fiestas",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "calibration"
+  },
+  {
+   "id": "romantico",
+   "query": "Viaje romántico con hotel boutique y buena cocina",
+   "category": "intención",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "calibration"
+  },
+  {
+   "id": "aves-selva",
+   "query": "Ecoturismo, observación de aves y selva, sin hoteles grandes",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "tacos-mezcal",
+   "query": "Comida callejera, tacos y mezcal",
+   "category": "gastronomía",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "mochilero",
+   "query": "Mochilero con presupuesto bajo, hostales y playa",
+   "category": "intención",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "arte-bohemio",
+   "query": "Arte, galerías y vida bohemia",
+   "category": "cultura",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "abuelos",
+   "query": "Lugar para ir con mis abuelos, poco caminar y buena comida",
+   "category": "intención",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "extremo",
+   "query": "Deportes extremos: rappel, tirolesa y cuatrimotos",
+   "category": "aventura",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "calibration"
+  },
+  {
+   "id": "danzas",
+   "query": "Fiestas tradicionales, danzas y cultura indígena",
+   "category": "cultura",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "fotografia",
+   "query": "Fotografía de paisajes al amanecer y miradores",
+   "category": "naturaleza",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "buceo-sin-multitud",
+   "query": "Buceo en arrecifes, sin multitudes",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "invierno-calido",
+   "query": "Clima cálido en invierno, pero sin playa",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "barroco-sin-ruinas",
+   "query": "Iglesias barrocas y museos, sin ruinas arqueológicas",
+   "category": "restricción",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "naturaleza-sin-caminar",
+   "query": "Quiero naturaleza pero no quiero caminar mucho",
+   "category": "negación",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "calibration"
+  },
+  {
+   "id": "rios-pozas",
+   "query": "Nadar en ríos, pozas y cascadas de agua fría",
+   "category": "naturaleza",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "dev"
+  },
+  {
+   "id": "fin-de-semana",
+   "query": "Escapada de fin de semana con buena comida y caminatas",
+   "category": "intención",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "test"
+  },
+  {
+   "id": "sin-evidencia",
+   "query": "Esquiar en nieve y patinar sobre hielo",
+   "category": "fuera de corpus",
+   "origin": "banco ampliado 2026-11-12 (sin etiquetas)",
+   "split": "test"
+  }
+ ]
+}

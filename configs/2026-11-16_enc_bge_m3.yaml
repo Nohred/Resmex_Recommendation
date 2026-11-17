@@ -1,0 +1,18 @@
+# Selección de encoder en muestra · bge-m3 (Ollama), con el mismo truncado que la base.
+#
+# Ficha: https://huggingface.co/BAAI/bge-m3 (consultada el 2026-11-15)
+#   - Sin prefijos ni instrucciones: "the BGE-M3 model no longer requires adding
+#     instructions to the queries"; tampoco para documentos.
+#   - Contexto: 8,192 tokens · 1,024 dimensiones. En Ollama: contexto 8192, F16.
+#   - Aquí max_chars 1500 (control: mismos textos que nomic); la variante con el contexto
+#     largo está en 2026-11-16_enc_bge_m3_largo.yaml.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_bge_m3
+  reports_dir: reports/exp/2026-11-16_enc_bge_m3
+data:
+  max_reviews_per_town: 1500
+encoder:
+  model: bge-m3
+  doc_prefix: ""
+  query_prefix: ""

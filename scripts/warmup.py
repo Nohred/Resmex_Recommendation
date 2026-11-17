@@ -26,7 +26,7 @@ def main() -> None:
     cfg = load_config()
     if not cfg.llm.cache:
         raise SystemExit("La caché está apagada (llm.cache: false en config.yaml).")
-    rec = Recommender(cfg, ArchetypeIndex.load(cfg.artifacts_dir))
+    rec = Recommender(cfg, ArchetypeIndex.load(cfg.artifacts_dir, cfg.ranking))
     for query in [*EXAMPLES, *sys.argv[1:]]:
         out = rec.recommend(query)
         exp = out.expansion

@@ -1,0 +1,11 @@
+# qwen3-embedding:0.6b sin truncar (max_chars 9000 > reseña más larga, 8,296 caracteres).
+# num_ctx 4096 cubre la reseña más larga (2,258 tokens medidos) con margen; no hace falta pedir los 32k de la ficha.
+# Fuente y prefijos: ver 2026-11-16_enc_qwen3.yaml.
+extends: 2026-11-16_enc_qwen3.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_qwen3_largo
+  reports_dir: reports/exp/2026-11-16_enc_qwen3_largo
+data:
+  max_chars: 9000
+encoder:
+  num_ctx: 4096

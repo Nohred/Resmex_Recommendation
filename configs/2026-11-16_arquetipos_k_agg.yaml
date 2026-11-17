@@ -1,0 +1,25 @@
+# Barrido de arquetipos: cuántos por pueblo (k) y cómo combinarlos (agregación), con el
+# encoder de config.yaml y su caché de embeddings (no se recodifica ninguna reseña).
+# Lo corre `scripts/sweep_archetypes.py` (etapas: barrido → hyde → prueba); la configuración
+# ganadora vive en su propio YAML.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_arquetipos_k_agg     # K-Means por (pueblo, k) y vectores del holdout
+  reports_dir: reports/exp/2026-11-16_arquetipos_k_agg
+archetypes:
+  label_with_llm: false          # el barrido no gasta cuota; solo se etiqueta la ganadora
+barrido:
+  k_fijo: [1, 3, 5, 10, 15, 20, 30]
+  k_log:                         # k = clip(round(a · ln(n_reseñas de train)), k_min, k_max)
+    a: [1, 2, 3]
+    k_min: 3
+    k_max: 30
+  silhouette:                    # k con el mejor silhouette (coseno) en una muestra por pueblo
+    k_min: 3
+    k_max: 25
+    muestra: 5000
+  agregacion: [max, top2, lse, max_big]
+  lse_tau: [0.01, 0.03, 0.1]     # temperatura del logsumexp
+  max_big:                       # se ignoran los clústeres con share < 2 % o < 30 reseñas
+    min_share: 0.02
+    min_size: 30

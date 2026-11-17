@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from restmex.config import load_config  # noqa: E402
 from restmex.data import load_reviews  # noqa: E402
-from restmex.encoders import build_encoder  # noqa: E402
+from restmex.encoders import build_encoder, locate_embeddings  # noqa: E402
 from restmex.evaluate import (  # noqa: E402
     balanced_sample, choose_lambda, lambda_sweep, popularity_bias, retrieval_metrics, true_ranks,
 )
@@ -85,13 +85,14 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     cfg = load_config(args.config)
+    logger.info("Configuración: %s", cfg.source)
     art_dir = cfg.artifacts_dir / "sample" if args.sample else cfg.artifacts_dir
     rep_dir = cfg.reports_dir / "sample" if args.sample else cfg.reports_dir
     (rep_dir / "figures").mkdir(parents=True, exist_ok=True)
 
-    index = ArchetypeIndex.load(art_dir)
+    index = ArchetypeIndex.load(art_dir, cfg.ranking)
     rows = pd.read_csv(art_dir / "embeddings_index.csv")
-    emb = np.load(art_dir / "embeddings.npy", mmap_mode="r")
+    emb = np.load(locate_embeddings(art_dir, cfg.root), mmap_mode="r")
     if len(rows) != len(emb):
         raise SystemExit("embeddings.npy y embeddings_index.csv no coinciden; ejecuta `make index`.")
     centroids = np.load(art_dir / "town_centroids.npy")

@@ -8,17 +8,18 @@ paths:
 data:
   val_fraction: 0.1        # 90/10 estratificado por pueblo
   seed: 42
-  max_chars: 1500          # truncado explícito (~375 tokens; el contexto de nomic es 512)
+  max_chars: 1500          # truncado explícito (~375 tokens); quitarlo no mejoró con ningún encoder
   max_reviews_per_town: null   # tope opcional de reseñas por pueblo (null = todas)
 
 encoder:
   backend: ollama          # ollama | sentence_transformers
-  model: nomic-embed-text-v2-moe
+  model: embeddinggemma    # ganó la selección de encoders (reports/experiments.md)
   batch_size: 128
-  # nomic usa prefijos de tarea. Reseñas, HyDE y Anti-HyDE se comparan
-  # documento-contra-documento, así que todos usan doc_prefix.
-  doc_prefix: "search_document: "
-  query_prefix: "search_query: "     # solo para la consulta cruda (línea base sin HyDE)
+  # embeddinggemma usa prefijos de tarea (ficha del modelo). Reseñas, HyDE y Anti-HyDE se
+  # comparan documento-contra-documento, así que todos usan doc_prefix; el texto ya trae el
+  # título de la reseña, por eso `title: none`.
+  doc_prefix: "title: none | text: "
+  query_prefix: "task: search result | query: "   # solo para la consulta cruda (línea base sin HyDE)
   # Backend alternativo (pip install -r requirements-optional.txt):
   st_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
 
@@ -28,7 +29,7 @@ ollama:
   keep_alive: 30m
 
 archetypes:
-  k: 10
+  k: 30                    # barrido de arquetipos: mejor k de la rejilla (1–30)
   n_init: 10
   seed: 42
   n_keywords: 8
@@ -64,6 +65,8 @@ llm:
   cache_dir: artifacts/llm_cache
 
 ranking:
-  lambda: 0.015            # calibrado en validación: menor sesgo de popularidad sin perder MRR macro (ver README)
+  lambda: 0.03             # calibrado en validación: menor sesgo de popularidad sin perder MRR macro (ver README)
+  aggregation: lse         # max | lse: máximo suave (logsumexp) sobre los arquetipos del pueblo
+  lse_tau: 0.01
   top_k: 5
   bottom_k: 5

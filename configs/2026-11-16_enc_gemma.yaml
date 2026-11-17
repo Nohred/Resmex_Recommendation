@@ -1,0 +1,18 @@
+# Selección de encoder en muestra · embeddinggemma (Ollama), con el truncado de la base.
+#
+# Ficha: https://ai.google.dev/gemma/docs/embeddinggemma/model_card (consultada el 2026-11-15)
+#   - Documento: `title: {título | "none"} | text: {contenido}`.
+#   - Consulta de recuperación: `task: search result | query: {contenido}`.
+#   - Contexto: 2K tokens · 768 dimensiones. En Ollama: num_ctx 2048, BF16.
+#   - El texto ya incluye el título de la reseña, así que se usa `title: none`.
+#   - Aquí max_chars 1500 (control); la variante larga está en 2026-11-16_enc_gemma_largo.yaml.
+extends: config.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_gemma
+  reports_dir: reports/exp/2026-11-16_enc_gemma
+data:
+  max_reviews_per_town: 1500
+encoder:
+  model: embeddinggemma
+  doc_prefix: "title: none | text: "
+  query_prefix: "task: search result | query: "

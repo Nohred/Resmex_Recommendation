@@ -63,6 +63,11 @@ def parse_expansion(raw: str) -> tuple[str, str]:
     return hyde, anti
 
 
+def build_prompt(query: str) -> str:
+    """Prompt de HyDE / Anti-HyDE de una consulta (también es la clave de la caché)."""
+    return HYDE_PROMPT.format(query=" ".join(query.split()).replace('"', "'"))
+
+
 def expand_query(
     query: str,
     providers: list[LLMProvider],
@@ -78,7 +83,7 @@ def expand_query(
     """
     query = " ".join(query.split())
     start = time.time()
-    prompt = HYDE_PROMPT.format(query=query.replace('"', "'"))
+    prompt = build_prompt(query)
     try:
         res = run_chain(
             providers,

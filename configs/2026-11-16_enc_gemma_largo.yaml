@@ -1,0 +1,10 @@
+# embeddinggemma con su contexto completo (2,048 tokens). Medido en este corpus con Ollama:
+# 6,000 caracteres ≈ 1,408 tokens y la reseña más larga (8,296 caracteres) ≈ 1,932. Se usa
+# max_chars 6000 para dejar margen a textos con más tokens por carácter; lo que exceda el
+# contexto lo trunca Ollama. Fuente y prefijos: ver 2026-11-16_enc_gemma.yaml.
+extends: 2026-11-16_enc_gemma.yaml
+paths:
+  artifacts_dir: artifacts/exp/2026-11-16_enc_gemma_largo
+  reports_dir: reports/exp/2026-11-16_enc_gemma_largo
+data:
+  max_chars: 6000

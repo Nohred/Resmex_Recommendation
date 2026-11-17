@@ -50,6 +50,52 @@ def test_ollama_encoder_prefixes() -> None:
     np.testing.assert_allclose(np.linalg.norm(vecs, axis=1), 1.0)
 
 
+def test_ollama_encoder_num_ctx() -> None:
+    """`num_ctx` viaja como opción a Ollama y distingue al encoder en la caché."""
+    seen: list[dict] = []
+
+    class Client:
+        def embed(self, model, texts, timeout, **kwargs):
+            seen.append(kwargs)
+            return [[1.0, 0.0]] * len(texts)
+
+    plain, wide = OllamaEncoder(Client(), "m"), OllamaEncoder(Client(), "m", num_ctx=4096)
+    plain.encode_documents(["a"])
+    wide.encode_documents(["a"])
+    assert seen == [{}, {"options": {"num_ctx": 4096}}]
+    assert (plain.name, wide.name) == ("ollama:m", "ollama:m@ctx4096")
+
+
+def test_sentence_transformer_encoder_prefixes(monkeypatch) -> None:
+    """El backend alternativo aplica los prefijos de documento y consulta del YAML."""
+    import sys
+    import types
+
+    from restmex.config import Config
+    from restmex.encoders import build_encoder
+
+    class FakeST:
+        def __init__(self, model: str) -> None:
+            self.model, self.seen, self.max_seq_length, self.device = model, [], 128, "cpu"
+
+        def encode(self, texts, batch_size, **kwargs):
+            self.seen += list(texts)
+            return np.ones((len(texts), 3), dtype=np.float32)
+
+    monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(SentenceTransformer=FakeST))
+    cfg = Config()
+    cfg.encoder.backend, cfg.encoder.st_model = "sentence_transformers", "intfloat/multilingual-e5-large"
+    cfg.encoder.doc_prefix, cfg.encoder.query_prefix = "passage: ", "query: "
+    cfg.encoder.max_seq_length, cfg.encoder.fp16 = 512, True
+    enc = build_encoder(cfg)
+    vecs = enc.encode_documents(["reseña"])
+    enc.encode_queries(["consulta"])
+    assert enc._model.seen == ["passage: reseña", "query: consulta"]
+    assert enc._model.max_seq_length == 512
+    assert enc.name == "st:intfloat/multilingual-e5-large@len512@fp16"
+    np.testing.assert_allclose(np.linalg.norm(vecs, axis=1), 1.0, rtol=1e-6)
+
+
 def test_embed_corpus_resumes(tmp_path) -> None:
     texts = [f"ruinas {i} playa" for i in range(10)]
 
