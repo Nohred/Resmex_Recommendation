@@ -3,89 +3,143 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Recomendador de Pueblos Mágicos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23141B3C'/%3E%3Ccircle cx='12' cy='12' r='9' fill='%23FFB627' opacity='.25'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%23FFB627'/%3E%3C/svg%3E">
+  <link rel="preload" href="/static/vendor/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <div class="papel" aria-hidden="true"></div>
+  <a class="skip" href="#query">Ir a la consulta</a>
 
-  <header class="hero">
-    <div class="wrap">
-      <p class="eyebrow">Rest-Mex 2025 · <span id="stat-towns">40</span> Pueblos Mágicos · <span id="stat-arch">400</span> arquetipos</p>
-      <h1>¿Qué Pueblo Mágico <em>va contigo</em>?</h1>
-      <p class="lead">Describe el viaje que imaginas. El sistema escribe la reseña de tu viaje ideal y la de tu viaje de pesadilla, y las compara con lo que miles de viajeros contaron de cada pueblo.</p>
-    </div>
+  <header class="bar">
+    <p class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="11" class="brand-halo"/><circle cx="12" cy="12" r="4" class="brand-core"/></svg>
+      Pueblos Mágicos <span>recomendador sobre Rest-Mex 2025</span>
+    </p>
+    <p class="status" id="status"><i aria-hidden="true"></i><span>Comprobando el sistema…</span></p>
   </header>
 
-  <main class="wrap">
-    <section class="search card" aria-labelledby="q-label">
-      <form id="form">
-        <label id="q-label" for="query">¿Qué buscas en tu próximo viaje?</label>
-        <textarea id="query" name="query" rows="3" maxlength="600" required
-          placeholder="Ej.: un pueblo tranquilo en la sierra, con neblina, café y caminatas por el bosque…"></textarea>
-        <div class="examples" id="examples" aria-label="Consultas de ejemplo"></div>
-        <div class="actions">
-          <span class="status" id="status" title="Estado del sistema"><i></i><span>Comprobando…</span></span>
-          <span class="hint">Ctrl + Enter</span>
-          <button type="submit" id="submit">Recomendar</button>
+  <main>
+    <div class="stage">
+      <section class="ask" aria-labelledby="titulo">
+        <h1 id="titulo">Describe tu viaje y mira qué pueblos se encienden</h1>
+        <p class="lead">Un modelo de lenguaje escribe la reseña de tu viaje ideal y la de tu viaje de pesadilla. Después las comparamos con lo que <span id="stat-reviews">187 mil</span> reseñas cuentan de <span id="stat-towns">40</span> pueblos.</p>
+        <form id="form" novalidate>
+          <label for="query">¿Qué buscas en tu próximo viaje?</label>
+          <textarea id="query" name="query" rows="3" maxlength="600" required
+            placeholder="Un pueblo tranquilo en la sierra, con neblina, café y caminatas por el bosque"></textarea>
+          <div class="actions">
+            <button type="submit" id="submit">Encender pueblos</button>
+            <span class="hint">o Ctrl + Enter</span>
+          </div>
+          <div id="alert" class="alert" role="alert" hidden></div>
+          <div class="examples">
+            <p id="ej-titulo">O prueba con una de estas:</p>
+            <ul id="examples" aria-labelledby="ej-titulo"></ul>
+          </div>
+        </form>
+      </section>
+
+      <section id="reviews" class="reviews" aria-labelledby="reviews-title" hidden>
+        <h2 id="reviews-title" class="sr-only">Las dos reseñas que escribió el modelo</h2>
+        <article class="review review--ideal">
+          <h3>El viaje que buscas</h3>
+          <p id="hyde" class="review-text"></p>
+        </article>
+        <article class="review review--anti">
+          <h3>El viaje del que huirías</h3>
+          <p id="anti" class="review-text"></p>
+        </article>
+        <p class="review-meta" id="meta"></p>
+      </section>
+
+      <section class="map" aria-labelledby="map-title">
+        <h2 id="map-title" class="sr-only">Mapa de los pueblos</h2>
+        <div class="map-frame" id="map-frame">
+          <svg id="map" role="group" aria-labelledby="map-title map-help"></svg>
+          <figure class="inset" id="inset-frame">
+            <figcaption>Centro del país, ampliado</figcaption>
+            <svg id="inset" role="group" aria-label="Centro del país, ampliado"></svg>
+          </figure>
+          <div class="tip" id="tip" hidden></div>
         </div>
-      </form>
-    </section>
-
-    <div id="alert" class="alert" role="alert" hidden></div>
-
-    <section id="loading" class="loading card" hidden aria-live="polite">
-      <div class="spinner" aria-hidden="true"></div>
-      <div>
-        <strong id="loading-step">Imaginando tu viaje ideal…</strong>
-        <p>El modelo de lenguaje escribe dos reseñas; puede tardar unos segundos.</p>
-      </div>
-    </section>
-
-    <section id="results" hidden>
-      <div class="meta" id="meta"></div>
-
-      <h2 class="section-title top-title"><span>Top 5</span> Pueblos para ti</h2>
-      <div class="cards" id="top"></div>
-
-      <div class="avoid">
-        <h2 class="section-title bottom-title"><span>Bottom 5</span> Probablemente no son para ti</h2>
-        <p class="section-note">Los pueblos que más se parecen a tu viaje de pesadilla (Anti-HyDE), sin contar los del Top 5.</p>
-        <div class="cards compact" id="bottom"></div>
-      </div>
-
-      <details class="texts card" id="texts">
-        <summary>Ver las reseñas hipotéticas que generó el modelo <small id="texts-provider"></small></summary>
-        <div class="texts-grid">
-          <article class="hyde"><h3>HyDE · tu viaje ideal</h3><p id="hyde"></p></article>
-          <article class="anti"><h3>Anti-HyDE · tu viaje de pesadilla</h3><p id="anti"></p></article>
+        <div class="map-foot">
+          <ul class="legend" id="legend" aria-label="Simbología">
+            <li><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="9" class="lg-halo"/><circle cx="10" cy="10" r="4" class="lg-top"/></svg>Encendido: tu top 5</li>
+            <li><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="5.5" class="lg-bottom"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" class="lg-x"/></svg>Apagado: se parece a tu pesadilla</li>
+            <li><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="3" class="lg-rest"/></svg>Los demás brillan según su puntaje</li>
+          </ul>
+          <p class="map-help" id="map-help">Pasa el cursor por un pueblo, o enfoca el mapa y muévete con las flechas.</p>
         </div>
-      </details>
+      </section>
+    </div>
+
+    <p id="live" class="sr-only" aria-live="polite"></p>
+
+    <section id="results" class="results" hidden>
+      <div class="results-main">
+        <section class="tops" aria-labelledby="top-title">
+          <h2 id="top-title">Los cinco que van contigo</h2>
+          <p class="note">Ordenados por puntaje: el parecido con tu viaje ideal menos una penalización pequeña para que los pueblos con más reseñas no ganen solo por ser populares.</p>
+          <ol class="cards" id="top"></ol>
+        </section>
+
+        <section class="plane" aria-labelledby="plane-title">
+          <h2 id="plane-title">Afinidad contra rechazo</h2>
+          <p class="note">Cada punto es un pueblo. A la derecha, los que más se parecen a tu viaje ideal; arriba, los que más se parecen a tu pesadilla.</p>
+          <div class="plane-frame" id="plane-frame">
+            <svg id="plane" role="img" aria-labelledby="plane-title plane-desc"></svg>
+            <p id="plane-desc" class="sr-only"></p>
+            <div class="tip" id="plane-tip" hidden></div>
+          </div>
+          <details class="table-wrap">
+            <summary>Ver los <span id="table-n">40</span> pueblos como tabla</summary>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Tabla de todos los pueblos">
+              <table>
+                <thead><tr><th scope="col">Pueblo</th><th scope="col">Estado</th><th scope="col" class="num">Ideal</th><th scope="col" class="num">Pesadilla</th><th scope="col" class="num">Puntaje</th><th scope="col">Grupo</th></tr></thead>
+                <tbody id="table"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <section class="bottoms" aria-labelledby="bottom-title">
+        <h2 id="bottom-title">Los cinco que se quedan a oscuras</h2>
+        <p class="note">Los que más se parecen a tu viaje de pesadilla, sin contar los cinco de arriba.</p>
+        <ol class="cards cards--bottom" id="bottom"></ol>
+      </section>
     </section>
 
-    <section class="how card" aria-labelledby="how-title">
+    <section class="how" aria-labelledby="how-title">
       <h2 id="how-title">Cómo funciona</h2>
-      <p class="how-lead">Antes de la consulta (una sola vez), cada pueblo se resume en 10 <b>arquetipos</b>: los temas de los que hablan sus reseñas.</p>
-      <ol class="pipeline offline">
-        <li><b>208 mil reseñas</b><span>título + texto, 40 pueblos</span></li>
-        <li><b>Embeddings</b><span>nomic-embed-text-v2 · 768 d</span></li>
-        <li><b>K-Means por pueblo</b><span>k = 10 grupos</span></li>
-        <li><b>400 arquetipos</b><span>centroides + palabras clave</span></li>
-      </ol>
-      <p class="how-lead">En cada consulta:</p>
-      <ol class="pipeline online">
-        <li><b>1 · Tu consulta</b><span>lenguaje natural</span></li>
-        <li><b>2 · HyDE y Anti-HyDE</b><span>el LLM escribe la reseña ideal y la opuesta</span></li>
-        <li><b>3 · Emparejamiento</b><span>coseno contra los arquetipos; máximo por pueblo</span></li>
-        <li><b>4 · Penalización</b><span>− λ · log(1+n) / log(1+n<sub>max</sub>)</span></li>
-        <li><b>5 · Ranking</b><span>Top 5 por HyDE · Bottom 5 por Anti-HyDE</span></li>
-      </ol>
-      <p class="how-note">La penalización evita que los pueblos con muchísimas reseñas (como Tulum) ganen siempre solo por ser populares. La búsqueda tarda milisegundos; casi todo el tiempo lo consume el modelo de lenguaje.</p>
+      <div class="how-grid">
+        <div>
+          <h3>Antes, una sola vez</h3>
+          <ol>
+            <li><b>208 mil reseñas</b> de 40 pueblos: título y texto, limpios y sin duplicados.</li>
+            <li><b>Embeddings</b> de cada reseña con nomic-embed-text-v2, en tu máquina.</li>
+            <li><b>K-Means por pueblo</b> con k = 10: cada grupo es un tema del que hablan los viajeros.</li>
+            <li><b><span id="stat-arch">400</span> arquetipos</b>, cada uno con palabras clave, una etiqueta y su reseña más representativa.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>En cada consulta</h3>
+          <ol>
+            <li><b>Dos reseñas inventadas</b>: el modelo escribe tu viaje ideal y su opuesto.</li>
+            <li><b>Parecido</b> de cada reseña con los arquetipos; cuenta el mejor de cada pueblo.</li>
+            <li><b>Penalización</b> por popularidad: λ · log(1 + n) / log(1 + n<sub>máx</sub>).</li>
+            <li><b>Top 5</b> por puntaje y <b>bottom 5</b> por parecido con la pesadilla.</li>
+          </ol>
+        </div>
+      </div>
+      <p class="note">La búsqueda tarda milisegundos; casi todo el tiempo lo consume el modelo de lenguaje. Si ninguno responde, se usa tu consulta tal cual y una plantilla de opuestos.</p>
     </section>
   </main>
 
-  <footer class="wrap footer">
-    <p>Proyecto de Big Data · Datos: Rest-Mex 2025 · Embeddings locales con Ollama</p>
+  <footer class="foot">
+    <p>Proyecto de Big Data. Datos: Rest-Mex 2025. Mapa: Natural Earth (dominio público). Embeddings locales con Ollama.</p>
   </footer>
 
   <script src="/static/app.js"></script>

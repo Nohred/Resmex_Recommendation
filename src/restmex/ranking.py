@@ -100,3 +100,40 @@ def rank_towns(
         for r, t in enumerate(bottom_idx)
     ]
     return top, bottom
+
+
+def town_overview(
+    index: ArchetypeIndex,
+    hyde_vec: np.ndarray,
+    anti_vec: np.ndarray,
+    lam: float,
+    top: list[TownResult],
+    bottom: list[TownResult],
+) -> list[dict[str, Any]]:
+    """Resumen de todos los pueblos para el mapa y el plano afinidad / rechazo de la web.
+
+    No cambia el ranking: solo expone las mismas similitudes para los pueblos que no
+    entraron al Top ni al Bottom. `group` vale "top", "bottom" o `None`.
+    """
+    sims, best = index.town_scores(np.vstack([hyde_vec, anti_vec]))
+    penalty = popularity_penalty(index.n_reviews, index.n_max, lam)
+    group = {r.town: ("top", r.rank) for r in top} | {r.town: ("bottom", r.rank) for r in bottom}
+    out = []
+    for t, town in enumerate(index.towns):
+        meta_h, meta_a = index.meta[int(best[0, t])], index.meta[int(best[1, t])]
+        kind, rank = group.get(town, (None, None))
+        out.append({
+            "town": town,
+            "town_display": meta_h.get("town_display", town),
+            "region": meta_h.get("region", ""),
+            "n_reviews": int(index.n_reviews[t]),
+            "sim_hyde": float(sims[0, t]),
+            "sim_anti": float(sims[1, t]),
+            "penalty": float(penalty[t]),
+            "score": float(sims[0, t] - penalty[t]),
+            "archetype_label": meta_h.get("label", ""),
+            "anti_archetype_label": meta_a.get("label", ""),
+            "group": kind,
+            "rank": rank,
+        })
+    return out

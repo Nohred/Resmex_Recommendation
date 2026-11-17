@@ -11,7 +11,7 @@ from .encoders import Encoder, build_encoder
 from .llm import LLMCache, LLMProvider, build_cache, build_llm_chain
 from .ollama_client import OllamaClient
 from .query_expansion import QueryExpansion, expand_query
-from .ranking import TownResult, rank_towns
+from .ranking import TownResult, rank_towns, town_overview
 from .retrieval import ArchetypeIndex
 from .validation import validate_query
 
@@ -27,6 +27,7 @@ class Recommendation:
     bottom: list[TownResult]
     timings_ms: dict[str, float] = field(default_factory=dict)
     lam: float = 0.0
+    towns: list[dict[str, Any]] = field(default_factory=list)   # los 40 pueblos (mapa y plano de la web)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -44,6 +45,7 @@ class Recommendation:
             "lambda": self.lam,
             "top": [t.to_dict() for t in self.top],
             "bottom": [t.to_dict() for t in self.bottom],
+            "towns": self.towns,
             "timings_ms": self.timings_ms,
         }
 
@@ -75,9 +77,17 @@ class Recommender:
         siguiente eslabón de la cadena.
         """
         query = validate_query(query)
-        lam = self.cfg.ranking.lam if lam is None else lam
         t0 = time.perf_counter()
-        expansion = expand_query(query, self.providers, self.cfg.llm, self.cache, batch=batch)
+        expansion = self.expand(query, batch=batch)
+        return self.rank(expansion, lam, llm_seconds=time.perf_counter() - t0)
+
+    def expand(self, query: str, batch: bool = False) -> QueryExpansion:
+        """Primera etapa: HyDE / Anti-HyDE. La consulta ya debe venir validada."""
+        return expand_query(query, self.providers, self.cfg.llm, self.cache, batch=batch)
+
+    def rank(self, expansion: QueryExpansion, lam: Optional[float] = None, llm_seconds: float = 0.0) -> Recommendation:
+        """Segunda etapa: embeddings de los dos textos y ranking. Lanza `LLMError` si falla el encoder."""
+        lam = self.cfg.ranking.lam if lam is None else lam
         t1 = time.perf_counter()
         # Ambos textos se codifican como documentos (ver encoders.py).
         vecs = self.encoder.encode_documents([expansion.hyde, expansion.anti_hyde])
@@ -86,10 +96,11 @@ class Recommender:
             self.index, vecs[0], vecs[1], lam, self.cfg.ranking.top_k, self.cfg.ranking.bottom_k
         )
         t3 = time.perf_counter()
+        towns = town_overview(self.index, vecs[0], vecs[1], lam, top, bottom)
         timings = {
-            "llm": round((t1 - t0) * 1000, 1),
+            "llm": round(llm_seconds * 1000, 1),
             "embedding": round((t2 - t1) * 1000, 1),
             "busqueda": round((t3 - t2) * 1000, 3),
-            "total": round((t3 - t0) * 1000, 1),
+            "total": round((llm_seconds + t3 - t1) * 1000, 1),
         }
-        return Recommendation(expansion, top, bottom, timings, lam)
+        return Recommendation(expansion, top, bottom, timings, lam, towns)
